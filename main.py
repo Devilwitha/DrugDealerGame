@@ -46,8 +46,8 @@ if is_android and detected_height > detected_width:
     print(f"Android im Portrait-Modus erkannt. Tausche Breite({detected_width}) und Höhe({detected_height}) für interne Landscape-Berechnung.")
     # Behalte die ursprünglichen erkannten Werte für set_mode
     # Tausche nur die Werte für die *Berechnung* der Elemente
-    CALC_WIDTH = detected_height
-    CALC_HEIGHT = detected_width
+    CALC_WIDTH = detected_width
+    CALC_HEIGHT = detected_height
 else:
     # Auf Desktop oder Android im Landscape-Modus
     CALC_WIDTH = detected_width
