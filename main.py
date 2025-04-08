@@ -26,7 +26,7 @@ except pygame.error as e:
 # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT) ) # Ohne SCALED
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED) # Mit SCALED (empfohlen für Android DPI)
 
-pygame.display.set_caption("Viereck Packer V11.1 - Korrekter Fallback")
+pygame.display.set_caption("Viereck Packer V11.2 - Debug Skalierung")
 
 # Farben (RGB)
 WHITE, BLACK, RED, BLUE, GREEN, ORANGE = (255,)*3, (0,)*3, (255,0,0), (0,0,255), (0,255,0), (255,165,0)
@@ -42,9 +42,12 @@ target_rect = pygame.Rect(target_x, target_y, target_width, target_height)
 
 swipe_line_height = max(1, int(SCREEN_HEIGHT * (12 / ref_h)))
 swipe_line_rect = pygame.Rect(target_rect.x, target_rect.y, target_rect.width, swipe_line_height)
-min_swipe_distance = swipe_line_rect.width * 0.85
+min_swipe_distance = swipe_line_rect.width * 0.90
 
-small_size = max(1, int(SCREEN_WIDTH * (40 / ref_w)))
+small_size = max(1, int(SCREEN_WIDTH * (60 / ref_w))) # Zielgrösse für das Objekt
+# +++ DEBUG PRINT +++
+print(f"DEBUG: Berechnete small_size: ({small_size}, {small_size})")
+# +++++++++++++++++++
 start_padding_left = max(1, int(SCREEN_WIDTH * (100 / ref_w)))
 start_padding_top = max(1, int(SCREEN_HEIGHT * (400 / ref_h)))
 start_pos = [start_padding_left, start_padding_top]
@@ -59,27 +62,50 @@ score_pos_x = max(1, int(SCREEN_WIDTH * (10 / ref_w)))
 score_pos_y = max(1, int(SCREEN_HEIGHT * (10 / ref_h)))
 # --- Ende Proportionale Berechnung ---
 
-# --- Bild für kleines Viereck laden (mit KORRIGIERTEM Fallback) ---
+# --- Bild für kleines Viereck laden (mit DEBUGGING) ---
 small_image = None
 use_image = False
 image_filename = "butt.png"
 image_datafolder = "data"
 image_folder = "bilder"
-image_path = os.path.join(image_datafolder,image_folder, image_filename)
+image_path = os.path.join(image_datafolder, image_folder, image_filename)
 print(f"Versuche Bild zu laden von: {image_path}")
 
 try:
     original_small_image = pygame.image.load(image_path).convert_alpha()
+    original_size = original_small_image.get_size()
+    # +++ DEBUG PRINT +++
+    print(f"DEBUG: Originalbild '{image_path}' geladen. Grösse: {original_size}")
+    # +++++++++++++++++++
+
+    # ---> HIER WIRD DAS BILD AUF DIE PROPORTIONALE GRÖSSE SKALIERT <---
+    # Test 1: Verwende smoothscale (wie bisher)
+    print(f"DEBUG: Versuche Skalierung auf ({small_size}, {small_size}) mit smoothscale...")
     small_image = pygame.transform.smoothscale(original_small_image, (small_size, small_size))
-    use_image = True
-    print(f"Bild '{image_path}' erfolgreich geladen und skaliert.")
-# >>>>>>> HIER DIE ÄNDERUNG: Fange beide Fehlertypen ab <<<<<<<<<<
+
+    # Test 2: Versuche stattdessen scale (zum Testen Kommentar entfernen und smoothscale auskommentieren)
+    # print(f"DEBUG: Versuche Skalierung auf ({small_size}, {small_size}) mit scale...")
+    # small_image = pygame.transform.scale(original_small_image, (small_size, small_size))
+
+    scaled_size = small_image.get_size() # Grösse nach dem Skalierungsversuch
+    # +++ DEBUG PRINT +++
+    print(f"DEBUG: Bild skaliert (oder versucht). Resultierende Grösse: {scaled_size}")
+    # +++++++++++++++++++
+
+    # Prüfe, ob die Skalierung ungefähr funktioniert hat (kleine Abweichungen durch int() erlaubt)
+    if abs(scaled_size[0] - small_size) <= 1 and abs(scaled_size[1] - small_size) <= 1:
+         use_image = True
+         print(f"Bild '{image_path}' erfolgreich geladen und Skalierung scheint OK.")
+    else:
+         # Wenn die Skalierung offensichtlich nicht geklappt hat -> Fallback
+         print(f"WARNUNG: Skalierung fehlgeschlagen oder unerwartete Grösse ({scaled_size}) nach Skalierung erhalten (Ziel war {small_size}x{small_size}). Nutze Fallback.")
+         use_image = False # Verhindere Nutzung des (falsch skalierten?) Bildes
+
 except (pygame.error, FileNotFoundError) as e:
     print(f"WARNUNG: Fehler beim Laden/Skalieren des Bildes '{image_path}': {e}")
     print("-> Zeichne stattdessen rotes Viereck.")
-    use_image = False # Stelle sicher, dass use_image False ist
+    use_image = False
 # --- Ende Bild laden ---
-
 
 # Spielzustands-Variablen
 dragging, is_falling, offset_x, offset_y, score = False, False, 0, 0, 0
@@ -164,11 +190,9 @@ while running:
 
     # --- Bild ODER Fallback-Rechteck zeichnen ---
     if use_image and small_image is not None:
-        # Fall 1: Bild wurde geladen -> Bild zeichnen
         screen.blit(small_image, small_rect.topleft)
     else:
-        # Fall 2: Bild NICHT geladen (oder Fehler) -> Rotes Viereck zeichnen
-        pygame.draw.rect(screen, RED, small_rect)
+        pygame.draw.rect(screen, RED, small_rect) # Fallback
     # --- Ende Bild/Fallback ---
 
     # Punktestand anzeigen
