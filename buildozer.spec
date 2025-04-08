@@ -13,7 +13,7 @@ package.domain = ch.bollisoft
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+source.include_exts = py,png,jpg,kv,atlas,wav,ogg,mp3
 
 # (list) List of inclusions using pattern matching
 source.include_patterns = assets/*,data/*
@@ -30,6 +30,7 @@ source.include_patterns = assets/*,data/*
 
 # (str) Application versioning (method 1)
 version = 0.1
+#version = Release.miniGame
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -95,7 +96,7 @@ fullscreen = 1
 
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
-#android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
+android.permissions = android.permission.READ_EXTERNAL_STORAGE, android.permission.INTERNET (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
