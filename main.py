@@ -23,41 +23,32 @@ except pygame.error as e:
     detected_height = 600
 
 # --- Plattform prüfen ---
-# Die Android-Erkennung 'is_android' kann für spezifische Anpassungen
-# (wie die dickere Swipe-Linie) nützlich bleiben.
 is_android = False
 try:
-    # Versuche, ein Modul zu importieren, das typischerweise nur
-    # in einer Android-Verpackungsumgebung vorhanden ist (wie Kivy/Buildozer)
-    import android # Diese Zeile kann einen ImportError auslösen, wenn nicht auf Android
+    import android
     is_android = True
     print("Android-Plattform erkannt (basierend auf 'import android').")
 except ImportError:
     print("Nicht-Android-Plattform erkannt.")
-    # Prüfe alternativ über os.environ, was bei Kivy oft gesetzt wird
     if "ANDROID_ARGUMENT" in os.environ:
         is_android = True
         print("Android-Plattform erkannt (basierend auf Umgebungsvariable).")
 
 # --- Breite/Höhe für Berechnungen festlegen ---
-# WICHTIG: Dieser Code geht davon aus, dass die App via buildozer.spec
-# auf Querformat (landscape oder sensorLandscape) gezwungen wird.
-# Daher werden die erkannten Dimensionen direkt für die Berechnungen verwendet.
+# WICHTIG: Geht davon aus, dass Orientierung extern auf Landscape gesetzt ist.
 CALC_WIDTH = detected_width
 CALC_HEIGHT = detected_height
 print(f"Nutze Bildschirmgröße für Berechnungen (erwartet Landscape): {CALC_WIDTH}x{CALC_HEIGHT}")
 
-
 # --- Fenstermodus wählen ---
-# Verwende IMMER die *original* erkannten Dimensionen für die Fenstererstellung
-screen = pygame.display.set_mode((detected_width, detected_height), pygame.SCALED) # Mit SCALED empfohlen
-
-pygame.display.set_caption("Viereck Packer V11.7 - Forced Landscape") # Versionsnummer erhöht
+screen = pygame.display.set_mode((detected_width, detected_height), pygame.SCALED)
+pygame.display.set_caption("Viereck Packer V11.8 - Target Image") # Versionsnummer erhöht
 
 # Farben (RGB)
 WHITE, BLACK, RED, BLUE, GREEN, ORANGE = (255,)*3, (0,)*3, (255,0,0), (0,0,255), (0,255,0), (255,165,0)
 
-# --- Proportionale Berechnung (nutzt CALC_WIDTH/HEIGHT) ---
+# --- Proportionale Berechnung ---
+# Ziel-Rechteck (Position und Größe)
 target_width = max(1, int(CALC_WIDTH * (150 / ref_w)))
 target_height = max(1, int(CALC_HEIGHT * (200 / ref_h)))
 target_padding_right = max(1, int(CALC_WIDTH * (50 / ref_w)))
@@ -66,30 +57,27 @@ target_x = CALC_WIDTH - target_width - target_padding_right
 target_y = CALC_HEIGHT - target_height - target_padding_bottom
 target_rect = pygame.Rect(target_x, target_y, target_width, target_height)
 
-# --- Swipe-Linien-Höhe berechnen (mit Android-Anpassung, nutzt CALC_HEIGHT) ---
+# Swipe-Linie
 base_swipe_line_height = max(1, int(CALC_HEIGHT * (12 / ref_h)))
 if is_android:
     swipe_line_height = base_swipe_line_height * 3
     print(f"Android: Erhöhe Swipe-Linien-Höhe auf {swipe_line_height} (Basis: {base_swipe_line_height})")
 else:
     swipe_line_height = base_swipe_line_height
-# Erstelle das Swipe-Rechteck mit der (ggf. angepassten) Höhe
-# Position basiert auf target_rect
 swipe_line_rect = pygame.Rect(target_rect.x, target_rect.y, target_rect.width, swipe_line_height)
-min_swipe_distance = swipe_line_rect.width * 0.85 # Basiert auf Breite
+min_swipe_distance = swipe_line_rect.width * 0.85
 
-# Restliche proportionale Berechnungen (nutzen CALC_WIDTH/HEIGHT)
+# Kleines (rotes) Viereck
 small_size = max(1, int(CALC_WIDTH * (80 / ref_w)))
 start_padding_left = max(1, int(CALC_WIDTH * (100 / ref_w)))
 start_padding_top = max(1, int(CALC_HEIGHT * (400 / ref_h)))
 start_pos = [start_padding_left, start_padding_top]
-# Stelle sicher, dass small_rect Dimensionen > 0 hat
 if small_size <= 0:
      print(f"WARNUNG: Berechnete small_size ({small_size}) ist <= 0. Setze auf 1.")
      small_size = 1
 small_rect = pygame.Rect(start_pos[0], start_pos[1], small_size, small_size)
 
-
+# Physik und Schrift
 gravity = max(1, int(CALC_HEIGHT * (6 / ref_h)))
 font_size = max(12, int(CALC_HEIGHT * (36 / ref_h)))
 try:
@@ -101,57 +89,64 @@ score_pos_x = max(1, int(CALC_WIDTH * (10 / ref_w)))
 score_pos_y = max(1, int(CALC_HEIGHT * (10 / ref_h)))
 # --- Ende Proportionale Berechnung ---
 
-# --- Bild laden (mit plattformunabhängiger Pfadermittlung) ---
-small_image = None
-use_image = False
-image_filename = "butt.png"
+# --- Gemeinsamer Pfad für Bilder ---
 image_datafolder = "data"
 image_folder = "bilder"
-
-# --- Plattformunabhängiger Pfad ---
 try:
-    # Ermittle den Pfad des Verzeichnisses, in dem das aktuelle Skript liegt
     script_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError:
-    # Fallback, wenn __file__ nicht definiert ist (z.B. bei interaktiver Nutzung oder speziellen Bundlern)
     script_dir = os.path.abspath(".")
     print("WARNUNG: '__file__' nicht gefunden, nutze aktuelles Arbeitsverzeichnis als Basis.")
 
-# Baue den Pfad zum Bild relativ zum Skriptverzeichnis (oder Fallback) auf
-image_path = os.path.join(script_dir, image_datafolder, image_folder, image_filename)
-# --- Pfad Ende ---
+# --- Bild für kleines Viereck laden (butt.png) ---
+small_image = None
+use_small_image = False # Umbenannt von use_image zur Klarheit
+small_image_filename = "butt.png"
+small_image_path = os.path.join(script_dir, image_datafolder, image_folder, small_image_filename)
 
-print(f"Versuche Bild zu laden von: {image_path}") # Gibt den vollständigen Pfad aus
+print(f"Versuche kleines Bild zu laden von: {small_image_path}")
 try:
-    original_small_image = pygame.image.load(image_path).convert_alpha()
-    original_size = original_small_image.get_size()
-    print(f"DEBUG: Originalbild '{image_path}' geladen. Grösse: {original_size}")
-
-    # Skaliere das Bild auf die berechnete small_size
-    if small_size > 0: # Redundanter Check durch Korrektur oben, aber schadet nicht
+    original_small_image = pygame.image.load(small_image_path).convert_alpha()
+    print(f"DEBUG: Originalbild '{small_image_path}' geladen.")
+    if small_size > 0:
         small_image = pygame.transform.smoothscale(original_small_image, (small_size, small_size))
-        scaled_size = small_image.get_size()
-        print(f"DEBUG: Bild skaliert auf: {scaled_size}")
-
-        # Toleranzprüfung für die Skalierung
-        if abs(scaled_size[0] - small_size) <= 1 and abs(scaled_size[1] - small_size) <= 1:
-            use_image = True
-            print(f"Bild '{image_path}' erfolgreich geladen und Skalierung scheint OK.")
-        else:
-            print(f"WARNUNG: Skalierung ungenau (Ziel: {small_size}x{small_size}, Ergebnis: {scaled_size}). Nutze Fallback.")
-            use_image = False
-            small_image = None # Setze Bild zurück, um Fallback sicherzustellen
+        use_small_image = True
+        print(f"Kleines Bild erfolgreich skaliert auf {small_size}x{small_size}.")
     else:
-         # Sollte nicht mehr passieren wegen Check oben
-         print(f"WARNUNG: Berechnete small_size ({small_size}) ist ungültig für Skalierung. Nutze Fallback.")
-         use_image = False
-
+         print(f"WARNUNG: small_size ({small_size}) ungültig. Kein kleines Bild geladen.")
+         use_small_image = False
 except (pygame.error, FileNotFoundError) as e:
-    print(f"WARNUNG: Fehler beim Laden/Skalieren des Bildes '{image_path}': {e}")
+    print(f"WARNUNG: Fehler beim Laden/Skalieren des kleinen Bildes '{small_image_path}': {e}")
     print("-> Zeichne stattdessen rotes Viereck.")
-    use_image = False
-    small_image = None # Sicherstellen, dass kein Bild verwendet wird
-# --- Ende Bild laden ---
+    use_small_image = False
+    small_image = None
+# --- Ende Bild für kleines Viereck ---
+
+# --- Bild für Ziel-Viereck laden (grip.png) ---
+target_image = None
+use_target_image = False
+target_image_filename = "grip.png"
+target_image_path = os.path.join(script_dir, image_datafolder, image_folder, target_image_filename)
+
+print(f"Versuche Ziel-Bild zu laden von: {target_image_path}")
+try:
+    original_target_image = pygame.image.load(target_image_path).convert_alpha()
+    print(f"DEBUG: Originalbild '{target_image_path}' geladen.")
+    # Skaliere auf die Größe des target_rect
+    if target_rect.width > 0 and target_rect.height > 0:
+        target_image = pygame.transform.smoothscale(original_target_image, (target_rect.width, target_rect.height))
+        use_target_image = True
+        print(f"Ziel-Bild erfolgreich skaliert auf {target_rect.width}x{target_rect.height}.")
+    else:
+         print(f"WARNUNG: target size ({target_rect.width}x{target_rect.height}) ungültig. Kein Ziel-Bild geladen.")
+         use_target_image = False
+except (pygame.error, FileNotFoundError) as e:
+    print(f"WARNUNG: Fehler beim Laden/Skalieren des Ziel-Bildes '{target_image_path}': {e}")
+    print("-> Zeichne stattdessen blaues Viereck.")
+    use_target_image = False
+    target_image = None
+# --- Ende Bild für Ziel-Viereck ---
+
 
 # Spielzustands-Variablen
 dragging, is_falling, offset_x, offset_y, score = False, False, 0, 0, 0
@@ -170,107 +165,82 @@ while running:
                 running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: # Linke Maustaste / Touch
-                # Priorität 1: Ist der Klick im Swipe-Bereich, wenn bereit?
                 if ready_for_swipe and swipe_line_rect.collidepoint(event.pos):
                     is_swiping = True
                     swipe_start_x = event.pos[0]
                     swipe_current_x = event.pos[0]
-                    dragging = False # Sicherstellen, dass nicht gleichzeitig gedraggt wird
-                # Priorität 2: Ist der Klick auf dem kleinen Viereck/Bild?
-                #             (und wird nicht gerade geswiped)
+                    dragging = False
                 elif small_rect.collidepoint(event.pos) and not is_swiping:
                     dragging = True
                     is_falling = False
                     ready_for_swipe = False
-                    # is_swiping sollte hier schon False sein, aber zur Sicherheit:
                     is_swiping = False
                     swipe_start_x = None
                     swipe_current_x = None
-                    # Berechne Offset relativ zur oberen linken Ecke des Vierecks
                     offset_x = small_rect.x - event.pos[0]
                     offset_y = small_rect.y - event.pos[1]
-                # Priorität 3: Klick irgendwo anders (ignoriert für Drag/Swipe)
                 else:
-                    pass # Kein relevantes Objekt geklickt
+                    pass
 
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1: # Linke Maustaste / Touch losgelassen
                 if is_swiping:
-                    # Swipe beendet (egal ob erfolgreich oder nicht)
                     is_swiping = False
                     swipe_start_x = None
                     swipe_current_x = None
-                    # WICHTIG: Prüfe *nach* dem Loslassen, ob das Viereck noch im Ziel ist
                     if not target_rect.contains(small_rect):
-                         ready_for_swipe = False # War vielleicht drin, wurde aber rausgezogen
-                         is_falling = True      # Sollte wieder fallen
-                    # Kein else nötig, wenn es noch drin ist, bleibt ready_for_swipe=True
+                         ready_for_swipe = False
+                         is_falling = True
 
                 elif dragging:
-                    # Dragging beendet
                     dragging = False
-                    # Prüfe, ob das Viereck *vollständig* im Zielbereich ist
                     if target_rect.contains(small_rect):
                         ready_for_swipe = True
                         is_falling = False
                     else:
-                        # Nicht (mehr) im Ziel -> fallen lassen
                         ready_for_swipe = False
                         is_falling = True
 
         elif event.type == pygame.MOUSEMOTION:
             if is_swiping:
                 swipe_current_x = event.pos[0]
-                # Prüfe, ob die Mausbewegung *innerhalb* der Swipe-Linie stattfindet
-                # (Verhindert versehentliches Swipen ausserhalb)
                 if swipe_line_rect.collidepoint(event.pos):
-                    if swipe_start_x is not None: # Sicherheitshalber prüfen
+                    if swipe_start_x is not None:
                         swiped_distance = abs(swipe_current_x - swipe_start_x)
-                        # Prüfe, ob die Distanz ausreicht
                         if swiped_distance >= min_swipe_distance:
                             score += 1
-                            small_rect.topleft = tuple(start_pos) # Zurück zum Start
-                            # Zustand zurücksetzen
+                            small_rect.topleft = tuple(start_pos)
                             ready_for_swipe = False
-                            is_falling = False # Nicht fallen lassen nach erfolgreichem Swipe
+                            is_falling = False
                             is_swiping = False
                             swipe_start_x = None
                             swipe_current_x = None
                 else:
-                    # Maus hat Swipe-Bereich verlassen -> Swipe abbrechen
                     is_swiping = False
                     swipe_start_x = None
                     swipe_current_x = None
-                    # Prüfe, ob Viereck noch im Ziel ist, wenn Swipe abgebrochen wird
                     if not target_rect.contains(small_rect):
                          ready_for_swipe = False
                          is_falling = True
 
             elif dragging:
-                old_rect = small_rect.copy() # Kopie der alten Position für Kollisionslogik
-                # Neue potentielle Position berechnen
+                old_rect = small_rect.copy()
                 potential_x = event.pos[0] + offset_x
                 potential_y = event.pos[1] + offset_y
                 small_rect.topleft = (potential_x, potential_y)
 
-                # --- Kollisionsbehandlung mit dem ZIEL-Rechteck ---
-                # Verhindert, dass das kleine Viereck in das Ziel hineingezogen wird
-                # (Nur relevant, wenn es *von aussen* kommt)
+                # Kollision kleines Viereck mit Ziel-Rechteck (nur von aussen)
                 if not target_rect.contains(old_rect) and small_rect.colliderect(target_rect):
-                    # Von LINKS kommend in Ziel eingedrungen?
                     if old_rect.right <= target_rect.left and small_rect.right > target_rect.left:
                         small_rect.right = target_rect.left
-                    # Von RECHTS kommend in Ziel eingedrungen?
                     elif old_rect.left >= target_rect.right and small_rect.left < target_rect.right:
                         small_rect.left = target_rect.right
-                    # Von OBEN kommend in Ziel eingedrungen?
                     elif old_rect.bottom <= target_rect.top and small_rect.bottom > target_rect.top:
                          small_rect.bottom = target_rect.top
-                    # Von UNTEN kommend in Ziel eingedrungen?
                     elif old_rect.top >= target_rect.bottom and small_rect.top < target_rect.bottom:
                          small_rect.top = target_rect.bottom
 
-                # --- Begrenzung auf den Bildschirm ---
+                # Begrenzung auf den Bildschirm
                 if small_rect.left < 0: small_rect.left = 0
                 if small_rect.right > CALC_WIDTH: small_rect.right = CALC_WIDTH
                 if small_rect.top < 0: small_rect.top = 0
@@ -283,72 +253,63 @@ while running:
         potential_rect = small_rect.copy()
         potential_rect.y = potential_y
 
-        # Prüfe Kollision mit UNTERKANTE des Ziels
         collides_with_target_bottom = (
-            potential_rect.bottom > target_rect.bottom and  # Potentiell tiefer als Ziel-Unten
-            small_rect.bottom <= target_rect.bottom and     # Aktuell noch drüber oder bündig
-            potential_rect.right > target_rect.left and     # Horizontal überlappend
+            potential_rect.bottom > target_rect.bottom and
+            small_rect.bottom <= target_rect.bottom and
+            potential_rect.right > target_rect.left and
             potential_rect.left < target_rect.right
         )
 
         if collides_with_target_bottom:
-            # Auf Unterkante des Ziels aufsetzen
             small_rect.bottom = target_rect.bottom
             is_falling = False
-            # Ist es jetzt *im* Ziel? (Kann sein, wenn es von oben drauf fällt)
             if target_rect.contains(small_rect):
                 ready_for_swipe = True
             else:
-                # Auf Kante gelandet, aber nicht drin -> nicht bereit
                 ready_for_swipe = False
         else:
-            # Keine Kollision mit Zielboden, prüfe Bildschirmrand
             if potential_rect.bottom >= CALC_HEIGHT:
-                # Am Boden angekommen -> zurück zum Start
                 small_rect.topleft = tuple(start_pos)
                 is_falling = False
-                ready_for_swipe = False # Sicherstellen
+                ready_for_swipe = False
             else:
-                # Einfach weiter fallen
                 small_rect.y = potential_y
 
-    # Wenn 'ready_for_swipe' war, aber Objekt aus Ziel gezogen wurde (z.B. beim Draggen)
+    # Zustandskorrektur: Wenn bereit zum Swipen, aber Objekt nicht mehr im Ziel (und nicht gedragged)
     if ready_for_swipe and not target_rect.contains(small_rect) and not is_swiping:
-         # Nur fallen lassen, wenn nicht gerade aktiv gezogen wird
          if not dragging:
               ready_for_swipe = False
               is_falling = True
 
     # --- Zeichnen ---
     screen.fill(WHITE)
-    pygame.draw.rect(screen, BLUE, target_rect) # Ziel
 
-    # Swipe-Linie und Fortschritt zeichnen
+    # Ziel: Bild oder Fallback (blaues Viereck) zeichnen
+    if use_target_image and target_image is not None:
+        screen.blit(target_image, target_rect.topleft)
+    else:
+        # Fallback, wenn Bild nicht geladen wurde
+        pygame.draw.rect(screen, BLUE, target_rect)
+
+    # Swipe-Linie und Fortschritt zeichnen (nur wenn bereit)
     if ready_for_swipe:
-        # Zeichne die grüne Linie (Basis für Swipe)
-        pygame.draw.rect(screen, GREEN, swipe_line_rect)
-
-        # Zeichne orangen Fortschrittsbalken, wenn geswiped wird
+        pygame.draw.rect(screen, GREEN, swipe_line_rect) # Grüne Basislinie
         if is_swiping and swipe_start_x is not None and swipe_current_x is not None:
-            # Berechne Start und Breite des orangen Balkens
+            # Oranger Fortschrittsbalken
             orange_rect_x = min(swipe_start_x, swipe_current_x)
             orange_rect_width = abs(swipe_current_x - swipe_start_x)
-
-            # Begrenze den orangen Balken auf die Breite der grünen Linie
             orange_rect_x = max(swipe_line_rect.left, orange_rect_x)
             orange_rect_right = min(swipe_line_rect.right, orange_rect_x + orange_rect_width)
-            orange_rect_width = orange_rect_right - orange_rect_x # Effektive Breite
-
+            orange_rect_width = orange_rect_right - orange_rect_x
             if orange_rect_width > 0:
-                # Nutzt swipe_line_rect.height (kann auf Android höher sein)
                 orange_progress_rect = pygame.Rect(orange_rect_x, swipe_line_rect.y, orange_rect_width, swipe_line_rect.height)
                 pygame.draw.rect(screen, ORANGE, orange_progress_rect)
 
     # Kleines Viereck: Bild oder Fallback (rotes Viereck) zeichnen
-    if use_image and small_image is not None:
+    if use_small_image and small_image is not None:
         screen.blit(small_image, small_rect.topleft)
     else:
-        # Stelle sicher, dass auch small_rect existiert und gezeichnet werden kann
+        # Fallback, wenn Bild nicht geladen wurde
         if small_rect:
              pygame.draw.rect(screen, RED, small_rect)
 
