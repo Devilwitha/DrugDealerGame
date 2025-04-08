@@ -2,6 +2,7 @@
 import pygame
 import sys
 import math
+import os
 
 # Initialisierung von Pygame
 pygame.init()
@@ -11,8 +12,6 @@ ref_w = 800.0
 ref_h = 600.0
 
 # --- Bildschirmgrösse automatisch erkennen ---
-# Dieser Block versucht sofort, die Info zu holen. Wenn es fehlschlägt,
-# werden sofort die Standardwerte genutzt. Ein Warten ist nicht nötig.
 try:
     display_info = pygame.display.Info()
     SCREEN_WIDTH = display_info.current_w
@@ -22,32 +21,19 @@ except pygame.error as e:
     print(f"Fehler beim Abrufen der Bildschirmgröße: {e}. Nutze Standardwerte 800x600.")
     SCREEN_WIDTH = 800
     SCREEN_HEIGHT = 600
-# --- Ende Bildschirmgrösse ---
 
 # --- Fenstermodus wählen ---
-# Die erkannte/Standard-Grösse wird verwendet.
+# screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT) ) # Ohne SCALED
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED) # Mit SCALED (empfohlen für Android DPI)
 
-# !!! WICHTIGER HINWEIS FÜR ANDROID !!!
-# Wenn das Spiel auf Android trotz korrekter Auflösungserkennung zu klein ist,
-# liegt das an der hohen Pixeldichte (DPI).
-# AKTIVIERE DANN DIE NÄCHSTE ZEILE (entferne '#' und das Flag pygame.SCALED):
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT) ) # Momentan OHNE Skalierung
-# screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED) # MIT Skalierung (testen!)
-# ODER Vollbild mit Skalierung:
-# screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.SCALED)
-# ---------------------------------------
-
-pygame.display.set_caption("Viereck Packer V10.1 - Proportional + DPI Hinweis")
+pygame.display.set_caption("Viereck Packer V11.1 - Korrekter Fallback")
 
 # Farben (RGB)
 WHITE, BLACK, RED, BLUE, GREEN, ORANGE = (255,)*3, (0,)*3, (255,0,0), (0,0,255), (0,255,0), (255,165,0)
 
 # --- Proportionale Berechnung ---
-# Diese Berechnungen finden *nach* der Ermittlung von SCREEN_WIDTH/HEIGHT statt
-# und verwenden diese Werte, um alles proportional zu skalieren.
 target_width = max(1, int(SCREEN_WIDTH * (150 / ref_w)))
 target_height = max(1, int(SCREEN_HEIGHT * (200 / ref_h)))
-# ... (alle anderen proportionalen Berechnungen wie in V10)...
 target_padding_right = max(1, int(SCREEN_WIDTH * (50 / ref_w)))
 target_padding_bottom = max(1, int(SCREEN_HEIGHT * (100 / ref_h)))
 target_x = SCREEN_WIDTH - target_width - target_padding_right
@@ -56,15 +42,15 @@ target_rect = pygame.Rect(target_x, target_y, target_width, target_height)
 
 swipe_line_height = max(1, int(SCREEN_HEIGHT * (12 / ref_h)))
 swipe_line_rect = pygame.Rect(target_rect.x, target_rect.y, target_rect.width, swipe_line_height)
-min_swipe_distance = swipe_line_rect.width * 0.75
+min_swipe_distance = swipe_line_rect.width * 0.85
 
 small_size = max(1, int(SCREEN_WIDTH * (40 / ref_w)))
 start_padding_left = max(1, int(SCREEN_WIDTH * (100 / ref_w)))
-start_padding_top = max(1, int(SCREEN_HEIGHT * (50 / ref_h)))
+start_padding_top = max(1, int(SCREEN_HEIGHT * (400 / ref_h)))
 start_pos = [start_padding_left, start_padding_top]
-small_rect = pygame.Rect(start_pos[0], start_pos[1], small_size, small_size)
+small_rect = pygame.Rect(start_pos[0], start_pos[1], small_size, small_size) # Wichtig für Position/Kollision
 
-gravity = max(1, int(SCREEN_HEIGHT * (5 / ref_h)))
+gravity = max(1, int(SCREEN_HEIGHT * (6 / ref_h)))
 font_size = max(12, int(SCREEN_HEIGHT * (36 / ref_h)))
 try: font = pygame.font.SysFont("arial", font_size)
 except pygame.error: font = pygame.font.Font(None, font_size)
@@ -73,12 +59,34 @@ score_pos_x = max(1, int(SCREEN_WIDTH * (10 / ref_w)))
 score_pos_y = max(1, int(SCREEN_HEIGHT * (10 / ref_h)))
 # --- Ende Proportionale Berechnung ---
 
+# --- Bild für kleines Viereck laden (mit KORRIGIERTEM Fallback) ---
+small_image = None
+use_image = False
+image_filename = "butt.png"
+image_datafolder = "data"
+image_folder = "bilder"
+image_path = os.path.join(image_datafolder,image_folder, image_filename)
+print(f"Versuche Bild zu laden von: {image_path}")
+
+try:
+    original_small_image = pygame.image.load(image_path).convert_alpha()
+    small_image = pygame.transform.smoothscale(original_small_image, (small_size, small_size))
+    use_image = True
+    print(f"Bild '{image_path}' erfolgreich geladen und skaliert.")
+# >>>>>>> HIER DIE ÄNDERUNG: Fange beide Fehlertypen ab <<<<<<<<<<
+except (pygame.error, FileNotFoundError) as e:
+    print(f"WARNUNG: Fehler beim Laden/Skalieren des Bildes '{image_path}': {e}")
+    print("-> Zeichne stattdessen rotes Viereck.")
+    use_image = False # Stelle sicher, dass use_image False ist
+# --- Ende Bild laden ---
+
+
 # Spielzustands-Variablen
 dragging, is_falling, offset_x, offset_y, score = False, False, 0, 0, 0
 ready_for_swipe, is_swiping, swipe_start_x, swipe_current_x = False, False, None, None
 clock = pygame.time.Clock()
 
-# --- Spiel-Loop (Logik unverändert) ---
+# --- Spiel-Loop ---
 running = True
 while running:
     # Event Handling...
@@ -90,7 +98,7 @@ while running:
             if event.button == 1:
                 if ready_for_swipe and swipe_line_rect.collidepoint(event.pos):
                     is_swiping, swipe_start_x, swipe_current_x, dragging = True, event.pos[0], event.pos[0], False
-                elif small_rect.collidepoint(event.pos):
+                elif small_rect.collidepoint(event.pos): # Klick auf Position des Objekts?
                     dragging, is_falling, ready_for_swipe, is_swiping = True, False, False, False
                     swipe_start_x, swipe_current_x = None, None
                     offset_x, offset_y = small_rect.x - event.pos[0], small_rect.y - event.pos[1]
@@ -137,9 +145,11 @@ while running:
     if ready_for_swipe and not target_rect.contains(small_rect) and not dragging and not is_swiping:
         ready_for_swipe, is_falling = False, True
 
-    # Zeichnen...
+    # --- Zeichnen ---
     screen.fill(WHITE)
-    pygame.draw.rect(screen, BLUE, target_rect)
+    pygame.draw.rect(screen, BLUE, target_rect) # Ziel
+
+    # Swipe-Linie und Fortschritt zeichnen...
     if ready_for_swipe:
         pygame.draw.rect(screen, GREEN, swipe_line_rect)
         if is_swiping and swipe_start_x is not None and swipe_current_x is not None:
@@ -151,9 +161,20 @@ while running:
             if orange_rect_width > 0:
                 orange_progress_rect = pygame.Rect(orange_rect_x, swipe_line_rect.y, orange_rect_width, swipe_line_rect.height)
                 pygame.draw.rect(screen, ORANGE, orange_progress_rect)
-    pygame.draw.rect(screen, RED, small_rect)
+
+    # --- Bild ODER Fallback-Rechteck zeichnen ---
+    if use_image and small_image is not None:
+        # Fall 1: Bild wurde geladen -> Bild zeichnen
+        screen.blit(small_image, small_rect.topleft)
+    else:
+        # Fall 2: Bild NICHT geladen (oder Fehler) -> Rotes Viereck zeichnen
+        pygame.draw.rect(screen, RED, small_rect)
+    # --- Ende Bild/Fallback ---
+
+    # Punktestand anzeigen
     score_text = font.render(f"Punkte: {score}", True, BLACK)
     screen.blit(score_text, (score_pos_x, score_pos_y))
+
     pygame.display.flip()
     clock.tick(60)
 
