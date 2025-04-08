@@ -246,7 +246,7 @@ android.accept_sdk_license = True
 
 # (str) screenOrientation to set for the main activity.
 # Valid values can be found at https://developer.android.com/guide/topics/manifest/activity-element
-android.manifest.orientation = fullSensor
+android.manifest.orientation = landscape
 
 # (list) Android additional libraries to copy into libs/armeabi
 android.add_libs_armeabi = libs/android/*.so
