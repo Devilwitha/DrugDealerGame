@@ -1,0 +1,64 @@
+name: Buildozer Android Build
+
+on:
+  push:
+    branches:
+      - dev # Geändert von 'main' zu 'develop'
+      - main
+
+jobs:
+  build_android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Aktualisiere Build-Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --reinstall autoconf automake libtool
+
+      - name: Installiere Buildozer-Abhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              build-essential \
+              libtool \
+              autoconf \
+              automake \
+              pkg-config \
+              zlib1g-dev \
+              libffi-dev \
+              libssl-dev \
+              libltdl-dev \
+              autopoint
+
+      - name: Installiere Buildozer und Python-Abhängigkeiten
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cython==0.29.36 virtualenv
+          python -m pip install -r requirements.txt
+          python -m pip install buildozer
+
+      - name: Erstelle die Android-App
+        run: |
+          buildozer android debug # Oder 'release'
+          ls -l bin
+
+      - name: Ermittle APK-Name
+        id: get_apk_name
+        run: |
+          APK_NAME=$(ls bin/*.apk)
+          if [ -z "$APK_NAME" ]; then
+            echo "Fehler: Keine APK-Datei im bin-Verzeichnis gefunden."
+            exit 1 # Workflow-Fehler erzwingen
+          fi
+          echo "APK_NAME=$APK_NAME" >> $GITHUB_ENV # Ausgabe in GITHUB_ENV schreiben
+
+      - uses: actions/upload-artifact@v4 # Oder v3, je nach Bedarf
+        with:
+          name: android-app
+          path: ${{ env.APK_NAME }} # Ausgabe aus GITHUB_ENV lesen
