@@ -6,6 +6,7 @@ import os
 import traceback
 import time
 import random
+from . import cockCrackpart2 # NEU: Importiere das zweite Skript
 
 # --- Konstanten und Farben ---
 WHITE = (255, 255, 255)
@@ -198,7 +199,7 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
         print(f"WARNUNG: Ziel-Bild '{target_image_path}' laden fehlgeschlagen: {e}")
 
     # --- Pillen Setup ---
-    NUM_CIRCLES = 4
+    NUM_CIRCLES = 4 # Wieviele Pillen-Slots angezeigt werden
     print(f"DEBUG (cockCrack): Zeichne Layout für {NUM_CIRCLES} Pillen.")
     circle_diameter = max(10, int(CALC_WIDTH * (40 / ref_w)))
     circle_radius = circle_diameter // 2
@@ -206,21 +207,24 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     start_padding_left_circles = max(1, int(CALC_WIDTH * (50 / ref_w)))
     start_padding_top_circles = max(1, int(CALC_HEIGHT * (100 / ref_h)))
     start_positions_circles = []
-    small_circles_rects = []
+    small_circles_rects = [] # Rects für Position und Kollision
     for i in range(NUM_CIRCLES):
         start_x = start_padding_left_circles + i * (circle_diameter + circle_spacing)
         start_y = start_padding_top_circles
         start_positions_circles.append((start_x, start_y))
         small_circles_rects.append(pygame.Rect(start_x, start_y, circle_diameter, circle_diameter))
 
+    # Wie viele Pillen tatsächlich ins Ziel müssen, hängt vom Inventar ab (max. NUM_CIRCLES)
     pills_needed_for_score = min(NUM_CIRCLES, current_pills)
     print(f"DEBUG (cockCrack): Pillen benötigt für Punkt: {pills_needed_for_score} (Inventar: {current_pills})")
 
     circle_image = None
     use_circle_image = False
+    # Pillenbild basierend auf pills_name auswählen
     if pills_name.lower() == "tafelgan": pill_image_filename = "tafelgan.png"
-    else: pill_image_filename = "testpill.png"
-    if pills_name.lower() != "testpill": print(f"WARNUNG: Unbekannter pillsName '{pills_name}'. Nutze '{pill_image_filename}'.")
+    else: pill_image_filename = "testpill.png" # Fallback
+    if pills_name.lower() not in ["tafelgan", "testpill"]: # Warne bei unbekannten Namen, aber nutze Fallback
+        print(f"WARNUNG: Unbekannter pillsName '{pills_name}'. Nutze '{pill_image_filename}'.")
 
     print(f"DEBUG (cockCrack): Versuche Pillen-Bild: '{pill_image_filename}'")
     circle_image_path = os.path.join(image_folder, pill_image_filename)
@@ -232,22 +236,23 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     except Exception as e:
         print(f"WARNUNG: Pillen-Bild '{circle_image_path}' laden fehlgeschlagen: {e}. Nutze rote Kreise.")
 
-    circle_gravity_value = max(1, int(CALC_HEIGHT * (10 / ref_h)))
-    circles_falling = [False] * NUM_CIRCLES
+    circle_gravity_value = max(1, int(CALC_HEIGHT * (10 / ref_h))) # Fallgeschwindigkeit
+    circles_falling = [False] * NUM_CIRCLES # Status für jede Pille
 
     # Container Setup
     container_width = max(20, int(CALC_WIDTH * (100 / ref_w)))
-    container_height = max(60, int(CALC_HEIGHT * (120 / ref_h) * 2))
+    container_height = max(60, int(CALC_HEIGHT * (120 / ref_h) * 2)) # Höhe angepasst für besseres Aussehen
     container_start_x = max(10, int(CALC_WIDTH * (100 / ref_w)))
     container_start_y = screen_height - container_height - max(10, int(CALC_HEIGHT * (50 / ref_h)))
     container_rect = pygame.Rect(container_start_x, container_start_y, container_width, container_height)
-    container_angle = 0.0
-    TILT_SPEED, MAX_TILT_ANGLE, POUR_THRESHOLD_ANGLE = 90.0, 85.0, 40.0
-    POUR_RATE, INITIAL_LIQUID_FRACTION, GOAL_FRACTION = 0.5, 0.8, 0.5
-    current_liquid_fraction = INITIAL_LIQUID_FRACTION
-    total_liquid_poured_in_target = 0.0
+    container_angle = 0.0 # Kippwinkel
+    TILT_SPEED, MAX_TILT_ANGLE, POUR_THRESHOLD_ANGLE = 90.0, 85.0, 40.0 # Kipp-Parameter
+    POUR_RATE, INITIAL_LIQUID_FRACTION, GOAL_FRACTION = 0.5, 0.8, 0.5 # Gieß-Parameter
+    current_liquid_fraction = INITIAL_LIQUID_FRACTION # Startfüllstand im Container (0.0 bis 1.0)
+    total_liquid_poured_in_target = 0.0 # Wie viel im Ziel angekommen ist
     container_falling = False
-    container_image_path = os.path.join(image_folder, "glass.png")
+    # Container Bild
+    container_image_path = os.path.join(image_folder, "glass.png") # Bild für den Container
     scaled_container_image = None
     use_container_image = False
     try:
@@ -334,14 +339,14 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     except: pass
 
     # --- Spielzustands-Variablen (Interaktion) ---
-    dragging_circle_index = -1
-    dragging_container = False
-    container_offset_x, container_offset_y = 0, 0
-    offset_x, offset_y = 0, 0
-    tilting_left, tilting_right = False, False
-    touch_tilting_left, touch_tilting_right = False, False
-    game_over_delay_timer = 0.0
-    particle_emission_accumulator = 0.0
+    dragging_circle_index = -1 # Welche Pille wird gezogen (-1 = keine)
+    dragging_container = False # Wird der Container gezogen?
+    container_offset_x, container_offset_y = 0, 0 # Offset für Container-Drag
+    offset_x, offset_y = 0, 0 # Offset für Pillen-Drag
+    tilting_left, tilting_right = False, False # Status Tastatur-Kippen
+    touch_tilting_left, touch_tilting_right = False, False # Status Touch-Kippen
+    game_over_delay_timer = 0.0 # Verzögerung nach Erfolg/Misserfolg zum Reset
+    particle_emission_accumulator = 0.0 # Für gleichmäßige Partikelemission
 
     clock = pygame.time.Clock()
     last_time = time.time()
@@ -350,7 +355,7 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     running = True
     while running:
         current_time = time.time()
-        dt = min(current_time - last_time, 0.1)
+        dt = min(current_time - last_time, 0.1) # Delta Time, max 0.1s
         last_time = current_time
 
         mouse_pos = pygame.mouse.get_pos()
@@ -361,14 +366,14 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                 # Nur den Loop beenden, nicht die ganze App
                 print("WARNUNG (cockCrack): QUIT Event empfangen. Beende nur Minispiel-Loop.")
                 running = False
-                continue
+                continue # Wichtig: Zum nächsten Schleifendurchlauf, um quit() zu vermeiden
 
             # Keyboard Events
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                    continue
-                # Kippen nur mit Liquid
+                    continue # Wichtig
+                # Kippen nur mit Liquid möglich
                 if current_liquid >= 1:
                     if event.key == pygame.K_q: tilting_left = True
                     if event.key == pygame.K_e: tilting_right = True
@@ -390,26 +395,27 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                             touch_tilting_left = True; touch_handled = True
                         if tilt_right_button_rect.collidepoint(event.pos):
                             touch_tilting_right = True; touch_handled = True
-                    if touch_handled: continue
+                    if touch_handled: continue # Wenn Touch-Button geklickt, nicht weiter prüfen
 
                     clicked_on_circle = False
-                    # Pillen Klick (nur wenn Anzeige aktiv)
+                    # Pillen Klick (nur wenn Pillen vorhanden sind)
                     if current_pills >= 1:
+                        # Prüfe von oben nach unten (visuell), damit die oberste Pille gewählt wird
                         for i in range(NUM_CIRCLES - 1, -1, -1):
-                            if small_circles_rects[i].collidepoint(event.pos):
+                            if i < len(small_circles_rects) and small_circles_rects[i].collidepoint(event.pos):
                                 dragging_circle_index = i
-                                circles_falling[i] = False
-                                dragging_container = False
+                                circles_falling[i] = False # Stoppe Fall, wenn gegriffen
+                                dragging_container = False # Nur eines kann gezogen werden
                                 clicked_on_circle = True
                                 offset_x = small_circles_rects[i].x - event.pos[0]
                                 offset_y = small_circles_rects[i].y - event.pos[1]
-                                break
+                                break # Nur eine Pille auf einmal ziehen
 
-                    # Container Klick (nur mit Liquid)
+                    # Container Klick (nur wenn keine Pille geklickt wurde und Liquid vorhanden)
                     if not clicked_on_circle and current_liquid >= 1 and container_rect.collidepoint(event.pos):
                         dragging_container = True
-                        container_falling = False
-                        dragging_circle_index = -1
+                        container_falling = False # Stoppe Fall, wenn gegriffen
+                        dragging_circle_index = -1 # Keine Pille ziehen
                         container_offset_x = container_rect.x - event.pos[0]
                         container_offset_y = container_rect.y - event.pos[1]
 
@@ -423,25 +429,49 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                     # Pille loslassen -> Prüfen ob sie fallen soll
                     if dragging_circle_index != -1:
                         released_index = dragging_circle_index
-                        dragging_circle_index = -1
-                        is_supported = False
+                        dragging_circle_index = -1 # Nicht mehr ziehen
                         current_pill_rect = small_circles_rects[released_index]
+
+                        # Ist die Pille abgestützt? (Boden oder Zielboden)
+                        is_supported = False
                         if current_pill_rect.bottom >= screen_height: is_supported = True
+                        # Prüfen, ob sie auf dem Boden des Ziels liegt
                         if target_rect and not is_supported:
-                            is_horz_overlap = (current_pill_rect.right > target_rect.left and current_pill_rect.left < target_rect.right)
-                            is_supported = (is_horz_overlap and current_pill_rect.bottom >= target_rect.bottom)
+                            # Horizontal innerhalb oder überlappend mit Ziel?
+                            is_horz_overlap = (current_pill_rect.right > target_rect.left and
+                                               current_pill_rect.left < target_rect.right)
+                            # Ist der Boden der Pille auf oder unter dem Boden des Ziels?
+                            is_on_target_bottom = (is_horz_overlap and
+                                                   current_pill_rect.bottom >= target_rect.bottom)
+                            if is_on_target_bottom: is_supported = True
+
+                        # Soll fallen, wenn NICHT abgestützt UND NICHT (komplett) im Zielbereich ist
+                        # Oder wenn es gar kein Ziel gibt
                         should_fall = False
-                        not_in_target = (target_rect and not target_rect.contains(current_pill_rect))
-                        if not is_supported: should_fall = not_in_target or not target_rect
+                        if target_rect:
+                             is_inside_target = target_rect.contains(current_pill_rect)
+                             if not is_supported and not is_inside_target:
+                                 should_fall = True
+                        elif not is_supported: # Kein Ziel, fällt wenn nicht am Boden
+                             should_fall = True
+
                         if should_fall: circles_falling[released_index] = True
 
-                    # Container loslassen -> Prüfen ob er fallen soll (non-Android)
+
+                    # Container loslassen -> Prüfen ob er fallen soll (nur non-Android)
                     elif dragging_container:
                         dragging_container = False
+                        # Auf Desktop: Container fällt, wenn losgelassen und nicht am Boden/auf Ziel
                         if not is_android and container_rect.bottom < screen_height:
                             on_target_top = False
-                            is_horz_overlap = (target_rect and container_rect.right > target_rect.left and container_rect.left < target_rect.right)
-                            if is_horz_overlap: on_target_top = container_rect.bottom >= target_rect.top
+                            # Ist er über dem Zielbereich?
+                            if target_rect:
+                                is_horz_overlap = (container_rect.right > target_rect.left and
+                                                   container_rect.left < target_rect.right)
+                                # Ist der Boden des Containers auf oder über der Oberkante des Ziels?
+                                if is_horz_overlap and container_rect.bottom >= target_rect.top:
+                                    on_target_top = True # Wird vom Ziel gestützt (vereinfacht)
+                            # Fällt, wenn weder am Boden noch vom Ziel gestützt
                             container_falling = not on_target_top
 
             # Mouse Motion Events
@@ -451,231 +481,380 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                     current_rect = small_circles_rects[dragging_circle_index]
                     potential_x = event.pos[0] + offset_x
                     potential_y = event.pos[1] + offset_y
+                    # Begrenze auf Bildschirmränder
                     final_x = max(0, min(potential_x, screen_width - current_rect.width))
                     final_y = max(0, min(potential_y, screen_height - current_rect.height))
                     potential_rect = pygame.Rect(final_x, final_y, current_rect.width, current_rect.height)
 
+                    # Kollisionsprüfung mit Ziel (nur wenn Ziel existiert)
                     if target_rect and potential_rect.colliderect(target_rect):
                         was_outside = not target_rect.contains(current_rect)
-                        dx = final_x - current_rect.x
-                        if was_outside:
-                            if dx > 0 and current_rect.right <= target_rect.left and potential_rect.right > target_rect.left and potential_rect.bottom > target_rect.top: final_x = target_rect.left - current_rect.width
-                            elif dx < 0 and current_rect.left >= target_rect.right and potential_rect.left < target_rect.right and potential_rect.bottom > target_rect.top: final_x = target_rect.right
-                            if potential_rect.top < target_rect.bottom and current_rect.top >= target_rect.bottom: final_y = target_rect.bottom
-                        elif target_rect.contains(current_rect):
-                            if potential_rect.left < target_rect.left: final_x = target_rect.left
-                            elif potential_rect.right > target_rect.right: final_x = target_rect.right - current_rect.width
-                            elif potential_rect.bottom > target_rect.bottom: final_y = target_rect.bottom - current_rect.height
-                            elif potential_rect.top < target_rect.top: final_y = target_rect.top
+                        is_inside = target_rect.contains(potential_rect)
+
+                        # Vereinfachte Kollisionslogik:
+                        # Wenn man von außen versucht, hineinzuziehen, stoppe an den Kanten
+                        # Wenn man innen ist, bleibe innerhalb.
+                        # (Dies verhindert das "Hineinschieben" durch Wände)
+
+                        # Wenn aktuell ganz drin, halte es drin
+                        if target_rect.contains(current_rect):
+                             if potential_rect.left < target_rect.left: final_x = target_rect.left
+                             elif potential_rect.right > target_rect.right: final_x = target_rect.right - current_rect.width
+                             if potential_rect.top < target_rect.top: final_y = target_rect.top
+                             elif potential_rect.bottom > target_rect.bottom: final_y = target_rect.bottom - current_rect.height
+                        # Wenn aktuell draußen, aber Kollision mit Ziel
+                        elif was_outside:
+                             # Kam von links? Stoppe links.
+                             if current_rect.right <= target_rect.left and potential_rect.right > target_rect.left and potential_rect.bottom > target_rect.top :
+                                 final_x = target_rect.left - current_rect.width
+                             # Kam von rechts? Stoppe rechts.
+                             elif current_rect.left >= target_rect.right and potential_rect.left < target_rect.right and potential_rect.bottom > target_rect.top:
+                                 final_x = target_rect.right
+                             # Kam von unten? Stoppe unten (theoretisch, eher selten)
+                             # elif current_rect.top >= target_rect.bottom and potential_rect.top < target_rect.bottom:
+                             #      final_y = target_rect.bottom
+                             # Kam von oben? Stoppe oben (wichtiger)
+                             elif current_rect.bottom <= target_rect.top and potential_rect.bottom > target_rect.top and potential_rect.right > target_rect.left and potential_rect.left < target_rect.right:
+                                 final_y = target_rect.top - current_rect.height
+
                     current_rect.topleft = (final_x, final_y)
 
                 # Container bewegen
                 elif dragging_container:
                     potential_x = event.pos[0] + container_offset_x
                     potential_y = event.pos[1] + container_offset_y
+                    # Begrenze auf Bildschirmränder
                     final_x = max(0, min(potential_x, screen_width - container_rect.width))
                     final_y = max(0, min(potential_y, screen_height - container_rect.height))
                     container_rect.topleft = (final_x, final_y)
 
         # --- Spiel-Logik Update ---
-        if game_over_delay_timer <= 0:
+        if game_over_delay_timer <= 0: # Nur updaten, wenn kein Reset läuft
             # Container Kippen
             effective_tilt = 0
-            if current_liquid >= 1:
+            if current_liquid >= 1: # Nur kippen, wenn Flüssigkeit da ist
                 if tilting_left or touch_tilting_left: effective_tilt -= 1
                 if tilting_right or touch_tilting_right: effective_tilt += 1
             if effective_tilt != 0:
-                container_angle -= effective_tilt * TILT_SPEED * dt
-                container_angle = max(-MAX_TILT_ANGLE, min(MAX_TILT_ANGLE, container_angle))
+                container_angle -= effective_tilt * TILT_SPEED * dt # Winkel ändern
+                container_angle = max(-MAX_TILT_ANGLE, min(MAX_TILT_ANGLE, container_angle)) # Begrenzen
 
             # Container Gießen & Partikel
             can_pour = (abs(container_angle) > POUR_THRESHOLD_ANGLE and current_liquid_fraction > 0 and current_liquid >= 1)
             if can_pour:
+                # Wieviel Flüssigkeit ausgießen
                 pour_amount = min(POUR_RATE * INITIAL_LIQUID_FRACTION * dt, current_liquid_fraction)
-                current_liquid_fraction -= pour_amount
+                current_liquid_fraction -= pour_amount # Reduziere Füllstand im Container
                 poured_this_frame_total = pour_amount
-                spout_x = (container_rect.left + PARTICLE_RADIUS + 1 if container_angle > 0 else container_rect.right - PARTICLE_RADIUS - 1)
-                spout_y = container_rect.top + PARTICLE_RADIUS + 1
-                if target_rect.left < spout_x < target_rect.right and spout_y < target_rect.bottom:
+
+                # Wo kommen Partikel raus? (vereinfacht)
+                spout_x = (container_rect.left + PARTICLE_RADIUS + 1 if container_angle > 0 # Gekippt nach rechts -> linke Kante
+                           else container_rect.right - PARTICLE_RADIUS - 1) # Gekippt nach links -> rechte Kante
+                spout_y = container_rect.top + PARTICLE_RADIUS + 1 # Oberkante
+
+                # Prüfen, ob Ausguss über dem Ziel ist
+                poured_into_target_area = False
+                if target_rect:
+                   poured_into_target_area = (target_rect.left < spout_x < target_rect.right and
+                                              spout_y < target_rect.bottom) # Über dem Ziel (auch über dem Boden)
+
+                if poured_into_target_area:
+                    # Erhöhe Füllstand im Ziel, max. bis zum ursprünglichen Container-Inhalt
                     total_liquid_poured_in_target = min(total_liquid_poured_in_target + poured_this_frame_total, INITIAL_LIQUID_FRACTION)
+
+                # Partikel erzeugen
                 particle_emission_this_frame = poured_this_frame_total * PARTICLES_PER_SECOND
                 particle_emission_accumulator += particle_emission_this_frame
                 num_particles_to_emit = int(particle_emission_accumulator)
                 if num_particles_to_emit > 0:
-                    particle_emission_accumulator -= num_particles_to_emit
+                    particle_emission_accumulator -= num_particles_to_emit # Rest für nächsten Frame behalten
                     for _ in range(num_particles_to_emit):
+                        # Leichte Variation der Startposition
                         emit_x = spout_x + random.uniform(-PARTICLE_RADIUS, PARTICLE_RADIUS)
                         emit_y = spout_y + random.uniform(-PARTICLE_RADIUS, PARTICLE_RADIUS)
-                        rad_angle = math.radians(container_angle); vel_af = math.sin(rad_angle)
-                        init_dx = random.uniform(-PARTICLE_SPREAD, PARTICLE_SPREAD) - vel_af * 30
-                        init_dy = PARTICLE_INITIAL_VELOCITY_Y + random.uniform(0, 20)
+                        # Startgeschwindigkeit basierend auf Winkel und Zufall
+                        rad_angle = math.radians(container_angle); vel_af = math.sin(rad_angle) # Einfluss des Winkels
+                        init_dx = random.uniform(-PARTICLE_SPREAD, PARTICLE_SPREAD) - vel_af * 30 # Seitliche Streuung + Winkel-Drift
+                        init_dy = PARTICLE_INITIAL_VELOCITY_Y + random.uniform(0, 20) # Grundgeschwindigkeit + Variation
                         active_particles.append(Particle(emit_x, emit_y, init_dx, init_dy, PARTICLE_RADIUS, CURRENT_PARTICLE_COLOR, PARTICLE_LIFETIME))
 
-            # Physik für Container (Fall)
+            # Physik für Container (Fall) - nur Desktop
             if container_falling and not dragging_container and not is_android:
-                potential_cont_rect = container_rect.move(0, circle_gravity_value)
+                potential_cont_rect = container_rect.move(0, circle_gravity_value) # Wohin würde er fallen?
                 stopped = False
-                if potential_cont_rect.bottom >= screen_height: container_rect.bottom = screen_height; stopped = True
+                # Am Boden angekommen?
+                if potential_cont_rect.bottom >= screen_height:
+                    container_rect.bottom = screen_height; stopped = True
+                # Auf Ziel gelandet?
                 elif target_rect:
                     is_horz_overlap = (potential_cont_rect.right > target_rect.left and potential_cont_rect.left < target_rect.right)
-                    if is_horz_overlap and container_rect.bottom <= target_rect.top and potential_cont_rect.bottom > target_rect.top: container_rect.bottom = target_rect.top; stopped = True
+                    # Prüfen, ob er die Oberkante des Ziels kreuzt
+                    if is_horz_overlap and container_rect.bottom <= target_rect.top and potential_cont_rect.bottom > target_rect.top:
+                        container_rect.bottom = target_rect.top; stopped = True
+                # Wenn gestoppt, nicht weiter fallen lassen
                 if stopped: container_falling = False
-                else: container_rect.move_ip(0, circle_gravity_value)
+                else: container_rect.move_ip(0, circle_gravity_value) # Weiter fallen
 
             # Physik für Kreise (Fall)
             for i in range(NUM_CIRCLES):
-                if circles_falling[i] and dragging_circle_index != i:
+                if circles_falling[i] and dragging_circle_index != i: # Nur wenn sie fallen soll und nicht gezogen wird
                     current_rect = small_circles_rects[i]
-                    potential_rect = current_rect.move(0, circle_gravity_value)
+                    potential_rect = current_rect.move(0, circle_gravity_value) # Wohin würde sie fallen?
                     stopped_falling = False
-                    if potential_rect.bottom >= screen_height: current_rect.bottom = screen_height; stopped_falling = True
+                    # Am Boden angekommen?
+                    if potential_rect.bottom >= screen_height:
+                        current_rect.bottom = screen_height; stopped_falling = True
+                    # Auf Zielboden gelandet?
                     elif target_rect:
                         is_horz_overlap = (potential_rect.right > target_rect.left and potential_rect.left < target_rect.right)
+                        # Prüfen, ob sie den Boden des Ziels kreuzt
                         will_cross_target_bottom = (current_rect.bottom <= target_rect.bottom and potential_rect.bottom > target_rect.bottom)
-                        if is_horz_overlap and will_cross_target_bottom: current_rect.bottom = target_rect.bottom; stopped_falling = True
+                        if is_horz_overlap and will_cross_target_bottom:
+                            current_rect.bottom = target_rect.bottom; stopped_falling = True
+                    # Wenn gestoppt, nicht weiter fallen lassen
                     if stopped_falling: circles_falling[i] = False
-                    else: current_rect.move_ip(0, circle_gravity_value)
+                    else: current_rect.move_ip(0, circle_gravity_value) # Weiter fallen
 
             # Partikel Update & Cleanup
+            # Update Position und Lebenszeit, entferne tote Partikel
             active_particles = [p for p in active_particles if p.update(dt, PARTICLE_GRAVITY)]
-            active_particles = [p for p in active_particles if not ((target_rect and p.y > target_rect.bottom and target_rect.left < p.x < target_rect.right) or (p.y > screen_height - p.radius))]
+            # Entferne Partikel, die im Ziel unter den Boden fallen oder unter den Bildschirm fallen
+            active_particles = [p for p in active_particles if not (
+                                  (target_rect and p.y > target_rect.bottom and target_rect.left < p.x < target_rect.right) or
+                                  (p.y > screen_height - p.radius) )]
 
         # --- Win Condition & Reset ---
-        if game_over_delay_timer > 0:
+        if game_over_delay_timer > 0: # Läuft der Reset-Timer?
             game_over_delay_timer -= dt
-            if game_over_delay_timer <= 0:
-                container_angle = 0.0; current_liquid_fraction = INITIAL_LIQUID_FRACTION
-                total_liquid_poured_in_target = 0.0
-                container_rect.topleft = (container_start_x, container_start_y)
+            if game_over_delay_timer <= 0: # Timer abgelaufen -> Reset durchführen
+                # Reset Container
+                container_angle = 0.0
+                current_liquid_fraction = INITIAL_LIQUID_FRACTION # Wieder auffüllen
+                total_liquid_poured_in_target = 0.0 # Ziel leeren
+                container_rect.topleft = (container_start_x, container_start_y) # An Startposition
                 container_falling = False
                 tilting_left = tilting_right = touch_tilting_left = touch_tilting_right = False
-                dragging_container = False; active_particles = []; dragging_circle_index = -1
-                for i in range(NUM_CIRCLES): small_circles_rects[i].topleft = start_positions_circles[i]; circles_falling[i] = False
-                print("DEBUG (cockCrack): Spiel zurückgesetzt nach Erfolg.")
-        else:
-            liquid_condition_met = total_liquid_poured_in_target >= INITIAL_LIQUID_FRACTION * GOAL_FRACTION
+                dragging_container = False
+                # Reset Partikel
+                active_particles = []
+                # Reset Pillen
+                dragging_circle_index = -1
+                for i in range(NUM_CIRCLES):
+                    if i < len(small_circles_rects):
+                        small_circles_rects[i].topleft = start_positions_circles[i] # An Startposition
+                    circles_falling[i] = False # Nicht fallend
+                # Aktualisiere, wie viele Pillen für nächsten Score gebraucht werden
+                pills_needed_for_score = min(NUM_CIRCLES, current_pills)
+                print("DEBUG (cockCrack): Spiel zurückgesetzt nach Erfolg/Reset.")
+        else: # Kein Reset-Timer aktiv -> Prüfe auf Gewinnbedingung
+            # Bedingung 1: Genug Flüssigkeit im Ziel?
+            target_fill_goal = INITIAL_LIQUID_FRACTION * GOAL_FRACTION
+            liquid_condition_met = total_liquid_poured_in_target >= target_fill_goal
+
+            # Bedingung 2: Alle *benötigten* Pillen im Ziel und nicht fallend?
             all_needed_circles_in_target_and_static = False
             if target_rect and pills_needed_for_score > 0:
-                all_needed_circles_in_target_and_static = all(target_rect.contains(small_circles_rects[idx]) and not circles_falling[idx] for idx in range(pills_needed_for_score))
-            elif pills_needed_for_score <= 0: all_needed_circles_in_target_and_static = True
+                # Prüfe nur die ersten 'pills_needed_for_score' Slots
+                needed_indices = range(pills_needed_for_score)
+                all_needed_circles_in_target_and_static = all(
+                    (idx < len(small_circles_rects) and target_rect.contains(small_circles_rects[idx]) and not circles_falling[idx])
+                    for idx in needed_indices
+                )
+            elif pills_needed_for_score <= 0: # Wenn keine Pillen gebraucht werden (z.B. 0 im Inventar), ist die Bedingung erfüllt
+                all_needed_circles_in_target_and_static = True
 
+            # Wenn beide Bedingungen erfüllt sind:
             if liquid_condition_met and all_needed_circles_in_target_and_static:
+                 # Prüfe, ob Ressourcen vorhanden sind (mindestens 1 Pille und 1 Einheit Flüssigkeit)
                 if current_pills >= 1 and current_liquid >= 1:
-                    print("INFO: Ziel erreicht UND Ressourcen vorhanden!")
-                    current_pills -= 1; current_liquid -= 1; current_crack += 1
-                    pills_needed_for_score -= 1
-                    print(f"DEBUG: Ressourcen: Pills={current_pills}, Liquid={current_liquid}, Crack={current_crack}. Pillen für nächsten Score: {pills_needed_for_score}")
-                    game_over_delay_timer = 1.0
-                    if score_sound: score_sound.play()
-                else:
+
+                    # +++ START NEU (Aufruf von Teil 2) +++
+                    print("INFO: Bedingungen erfüllt. Starte cockCrackPart2 Minispiel...")
+
+                    # Optional: Kurze visuelle Überblendung oder Pause
+                    # screen.fill(BLACK) # Beispiel: Schwarzblende
+                    # pygame.display.flip()
+                    # time.sleep(0.1)
+
+                    # Rufe das zweite Minispiel auf und warte auf das Ergebnis (0 oder 1)
+                    points_from_part2 = cockCrackpart2.run_cock_crack_game(
+                        screen,
+                        current_pills,    # Übergib aktuelle Werte, falls Teil 2 sie braucht
+                        current_liquid,
+                        0,                # Crack-Zähler für Teil 2 ist hier irrelevant
+                        liquid_name,      # Namen übergeben
+                        pills_name
+                    )
+
+                    print(f"DEBUG: cockCrackPart2 beendet. Ergebnis: {points_from_part2}")
+
+                    if points_from_part2 > 0:
+                        # Erfolg in Teil 2! Verbrauche Ressourcen und zähle Punkt in Teil 1
+                        print("INFO: Punkt in cockCrackPart2 erzielt. Verbrauche Ressourcen.")
+                        current_pills -= 1    # Eine Pille verbraucht
+                        current_liquid -= 1   # Eine Einheit Flüssigkeit verbraucht
+                        current_crack += points_from_part2 # Füge den erzielten Punkt hinzu (sollte 1 sein)
+
+                        print(f"DEBUG: Neue Ressourcen: Pills={current_pills}, Liquid={current_liquid}, Crack={current_crack}")
+                        if score_sound:
+                            score_sound.play()
+                        game_over_delay_timer = 1.0 # Starte Reset-Verzögerung in Teil 1
+                    else:
+                        # Teil 2 wurde ohne Punkt beendet (z.B. Zurück-Button)
+                        print("INFO: cockCrackPart2 ohne Punkt beendet. Keine Ressourcen verbraucht.")
+                        if no_resource_sound: no_resource_sound.play() # Sound für Abbruch/Fehler
+                        # KEIN Reset-Timer hier, damit der Spieler es direkt nochmal versuchen kann
+                        # oder die Positionen korrigieren kann.
+                    # +++ ENDE NEU +++
+
+                else: # Bedingungen erfüllt, aber keine Ressourcen mehr
                     print("INFO: Ziel erreicht, aber nicht genügend Pillen/Liquid!")
                     if no_resource_sound: no_resource_sound.play()
+                    # Reset auslösen, damit man nicht im "gewonnen aber kein Score" Zustand bleibt?
+                    game_over_delay_timer = 1.0 # Startet Reset, auch wenn keine Ressourcen da waren
 
         # --- Zeichnen ---
         # Hintergrund
         if use_background_image and scaled_background_image:
             screen.blit(scaled_background_image, (0, 0))
         else:
-            screen.fill(WHITE) # Fallback
+            screen.fill(WHITE) # Fallback weiß
 
         # Ziel zeichnen
         if target_rect:
             if use_target_image and target_image:
+                # Zeichne zuerst den Füllstand (damit er hinter dem Bild ist)
+                target_fill_goal = INITIAL_LIQUID_FRACTION * GOAL_FRACTION
+                if target_fill_goal > 0 and total_liquid_poured_in_target > 0:
+                    target_fill_ratio = min(1.0, total_liquid_poured_in_target / target_fill_goal)
+                    # Füllhöhe relativ zur Zielhöhe
+                    fill_height = int(target_rect.height * target_fill_ratio)
+                    if fill_height > 0:
+                        fill_rect = pygame.Rect(target_rect.x, target_rect.bottom - fill_height, target_rect.width, fill_height)
+                        # Transparente Oberfläche für den Füllstand
+                        fill_surface = pygame.Surface(fill_rect.size, pygame.SRCALPHA)
+                        fill_surface.fill(CURRENT_TARGET_FILL_COLOR) # RGBA Farbe verwenden
+                        screen.blit(fill_surface, fill_rect.topleft)
+
+                # Zeichne das Zielbild über den Füllstand
                 screen.blit(target_image, target_rect.topleft)
-            else: # Fallback Linien
+            else: # Fallback Linien für Ziel
                 pygame.draw.line(screen, TARGET_DRAW_COLOR, target_rect.bottomleft, target_rect.topleft, 3)
                 pygame.draw.line(screen, TARGET_DRAW_COLOR, target_rect.bottomright, target_rect.topright, 3)
                 pygame.draw.line(screen, TARGET_DRAW_COLOR, target_rect.bottomleft, target_rect.bottomright, 3)
+                 # Füllstand auch für Fallback zeichnen
+                target_fill_goal = INITIAL_LIQUID_FRACTION * GOAL_FRACTION
+                if target_fill_goal > 0 and total_liquid_poured_in_target > 0:
+                    target_fill_ratio = min(1.0, total_liquid_poured_in_target / target_fill_goal)
+                    fill_height = int(target_rect.height * target_fill_ratio)
+                    if fill_height > 0:
+                         fill_rect = pygame.Rect(target_rect.x+1, target_rect.bottom - fill_height, target_rect.width-2, fill_height) # Etwas schmaler
+                         fill_surface = pygame.Surface(fill_rect.size, pygame.SRCALPHA)
+                         fill_surface.fill(CURRENT_TARGET_FILL_COLOR)
+                         screen.blit(fill_surface, fill_rect.topleft)
 
-            # Füllstand im Ziel
-            target_fill_goal = INITIAL_LIQUID_FRACTION * GOAL_FRACTION
-            if target_fill_goal > 0:
-                target_fill_ratio = min(1.0, total_liquid_poured_in_target / target_fill_goal)
-                fill_height = int(target_rect.height * target_fill_ratio)
-                if fill_height > 0:
-                    fill_rect = pygame.Rect(target_rect.x, target_rect.bottom - fill_height, target_rect.width, fill_height)
-                    fill_surface = pygame.Surface(fill_rect.size, pygame.SRCALPHA)
-                    fill_surface.fill(CURRENT_TARGET_FILL_COLOR)
-                    screen.blit(fill_surface, fill_rect.topleft)
 
-        # Container zeichnen
+        # Container zeichnen (nur wenn Liquid vorhanden)
         if current_liquid >= 1:
             if use_container_image and scaled_container_image:
+                # Original Bild rotieren
                 rotated_img = pygame.transform.rotate(scaled_container_image, container_angle)
+                # Neue Bounding Box nach Rotation berechnen, zentriert auf alter Position
                 rot_rect = rotated_img.get_rect(center=container_rect.center)
+                # Rotiertes Bild zeichnen
                 screen.blit(rotated_img, rot_rect)
-                liquid_h = container_height * current_liquid_fraction
-                if liquid_h > 1:
+
+                # Flüssigkeit im Container (als separate rotierte Oberfläche)
+                liquid_h_abs = container_height * current_liquid_fraction # Absolute Höhe
+                if liquid_h_abs > 1: # Nur zeichnen, wenn Höhe sichtbar ist
+                    # Erzeuge temporäre Oberfläche für die Flüssigkeit (Größe des Containers)
                     liquid_surf = pygame.Surface((container_width, container_height), pygame.SRCALPHA)
-                    liquid_surf.fill((0,0,0,0)) # Transparent
-                    pygame.draw.rect(liquid_surf, CURRENT_LIQUID_COLOR, (0, container_height - liquid_h, container_width, liquid_h))
+                    liquid_surf.fill((0,0,0,0)) # Komplett transparent machen
+                    # Zeichne Rechteck für Flüssigkeit UNTEN in diese Oberfläche
+                    pygame.draw.rect(liquid_surf, CURRENT_LIQUID_COLOR,
+                                     (0, container_height - liquid_h_abs, container_width, liquid_h_abs))
+                    # Rotiere die Flüssigkeits-Oberfläche um den gleichen Winkel
                     rotated_liq = pygame.transform.rotate(liquid_surf, container_angle)
+                    # Zentriere die rotierte Flüssigkeit ebenfalls
                     rot_liq_rect = rotated_liq.get_rect(center=container_rect.center)
+                    # Zeichne die rotierte Flüssigkeit
                     screen.blit(rotated_liq, rot_liq_rect)
-            else: # Fallback Container
-                pygame.draw.rect(screen, CONTAINER_COLOR, container_rect, 2)
-                liquid_h = container_height * current_liquid_fraction
+
+            else: # Fallback Container (Rechteck)
+                pygame.draw.rect(screen, CONTAINER_COLOR, container_rect, 2) # Nur Umriss
+                # Flüssigkeit im Fallback-Container (nicht rotiert)
+                liquid_h = container_rect.height * current_liquid_fraction
                 if liquid_h > 1:
-                    liq_rect = pygame.Rect(container_rect.left, container_rect.bottom - liquid_h, container_rect.width, liquid_h)
+                    liq_rect = pygame.Rect(container_rect.left + 1, container_rect.bottom - liquid_h,
+                                          container_rect.width - 2, liquid_h)
+                    # Benutze RGB-Teil der Farbe, da SRCALPHA hier nicht direkt geht
                     pygame.draw.rect(screen, CURRENT_LIQUID_COLOR[:3], liq_rect)
 
         # Partikel zeichnen
         for p in active_particles:
             p.draw(screen)
 
-        # Pillen zeichnen
+        # Pillen zeichnen (nur wenn Pillen vorhanden)
         if current_pills >= 1:
             for i in range(NUM_CIRCLES):
+                 # Zeichne nur die Slots, für die es auch Rects gibt
                 if i < len(small_circles_rects):
+                    current_rect = small_circles_rects[i]
                     if use_circle_image and circle_image:
-                        screen.blit(circle_image, small_circles_rects[i].topleft)
-                    else:
-                        pygame.draw.circle(screen, RED, small_circles_rects[i].center, circle_radius)
+                        screen.blit(circle_image, current_rect.topleft)
+                    else: # Fallback roter Kreis
+                        pygame.draw.circle(screen, RED, current_rect.center, circle_radius)
 
-        # UI zeichnen
+        # UI zeichnen (Texte)
         if font:
             crack_text = font.render(f"Crack: {current_crack}", True, RED)
             screen.blit(crack_text, (status_pos_x, status_pos_y))
         if info_font:
+            # Fortschritt der Zielfüllung anzeigen
+            target_fill_goal = INITIAL_LIQUID_FRACTION * GOAL_FRACTION
             prog_perc = (total_liquid_poured_in_target / target_fill_goal) * 100 if target_fill_goal > 0 else 0
             prog_text = info_font.render(f"Ziel Füllung: {min(prog_perc, 100):.0f}%", True, POUR_PROGRESS_COLOR)
             screen.blit(prog_text, (status_pos_x, progress_pos_y))
+            # Ressourcen anzeigen
             pills_text = info_font.render(f"{pills_name}: {current_pills}", True, BLACK)
             liquid_text = info_font.render(f"{liquid_name}: {current_liquid}", True, BLACK)
             screen.blit(pills_text, (status_pos_x, resource_pos_y))
             screen.blit(liquid_text, (status_pos_x, resource_pos_y + info_font_size + 5))
 
-        # Touch Buttons
+        # Touch Buttons zeichnen (nur auf Android)
         if is_android:
             pygame.draw.rect(screen, GRAY if not touch_tilting_left else DARK_GRAY, tilt_left_button_rect, border_radius=5)
             pygame.draw.rect(screen, BLACK, tilt_left_button_rect, 2, border_radius=5)
             if left_arrow_surf and left_arrow_rect: screen.blit(left_arrow_surf, left_arrow_rect)
+
             pygame.draw.rect(screen, GRAY if not touch_tilting_right else DARK_GRAY, tilt_right_button_rect, border_radius=5)
             pygame.draw.rect(screen, BLACK, tilt_right_button_rect, 2, border_radius=5)
             if right_arrow_surf and right_arrow_rect: screen.blit(right_arrow_surf, right_arrow_rect)
 
-        # Zurück Button
+        # Zurück Button zeichnen
         if back_button_rect:
             btn_color = GRAY
+            # Hover-Effekt
             if back_button_rect.collidepoint(mouse_pos): btn_color = DARK_GRAY
             pygame.draw.rect(screen, btn_color, back_button_rect)
-            pygame.draw.rect(screen, BLACK, back_button_rect, 2)
+            pygame.draw.rect(screen, BLACK, back_button_rect, 2) # Rand
+            # Text auf Button
             if back_text_surface and back_button_font:
                 text_rect = back_text_surface.get_rect(center=back_button_rect.center)
                 screen.blit(back_text_surface, text_rect)
 
-        pygame.display.flip()
-        clock.tick(60)
+        pygame.display.flip() # Bildschirm aktualisieren
+        clock.tick(60) # Framerate begrenzen
 
     # --- Ende der Spiel-Schleife ---
     print("INFO (cockCrack): Minispiel-Schleife beendet.")
 
-    # Gebe die finalen Werte zurück
+    # Gebe die finalen Werte zurück an das Hauptspiel
     return current_pills, current_liquid, current_crack
 
 # --- Ende der run_cock_crack_game Funktion ---
 
-# --- Code für Standalone-Ausführung ---
+# --- Code für Standalone-Ausführung (Testzwecke) ---
 if __name__ == "__main__":
     print("INFO: cockCrack.py wird eigenständig ausgeführt.")
     pygame.init()
@@ -683,24 +862,29 @@ if __name__ == "__main__":
         try: pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=1024)
         except pygame.error as e: print(f"WARNUNG (Standalone Init): Mixer fehlgeschlagen: {e}")
 
+    # Versuche, Bildschirmgröße zu ermitteln, sonst Standard
     try: _info = pygame.display.Info(); _sw, _sh = _info.current_w, _info.current_h
     except Exception: _sw, _sh = 800, 600
+    # Erstelle Fenster (skalierbar/resizeable für Test)
     standalone_screen = pygame.display.set_mode((_sw, _sh), pygame.SCALED | pygame.RESIZABLE)
     pygame.display.set_caption("CockCrack Minispiel (Standalone)")
 
     try:
-        start_pills_sa = 3
-        start_liquid_sa = 2
+        # Startwerte für den Standalone-Test
+        start_pills_sa = 5
+        start_liquid_sa = 3
         start_crack_sa = 0
         liquid_name_sa = "Wasser"
         pills_name_sa = "Tafelgan"
         print(f"\n--- Starte Standalone CockCrack mit: Pills={start_pills_sa}, Liquid={start_liquid_sa}, "
               f"Crack={start_crack_sa}, LiquidName='{liquid_name_sa}', PillsName='{pills_name_sa}' ---\n")
 
+        # Rufe die Hauptfunktion auf
         result_sa = run_cock_crack_game(
             standalone_screen, start_pills_sa, start_liquid_sa, start_crack_sa, liquid_name_sa, pills_name_sa
         )
 
+        # Gib das Ergebnis aus
         if result_sa:
             print(f"\n--- Standalone CockCrack Beendet. Ergebnis: ---")
             print(f"  Verbleibende Pillen: {result_sa[0]}")
@@ -711,9 +895,9 @@ if __name__ == "__main__":
             print("\n--- Standalone CockCrack Beendet. Kein Ergebnis zurückgegeben. ---\n")
 
     except Exception as e_main:
-        print(f"FEHLER in Standalone: {e_main}")
-        traceback.print_exc()
+        print(f"\nFEHLER in Standalone Ausführung: {e_main}")
+        traceback.print_exc() # Gib detaillierte Fehlermeldung aus
     finally:
-        pygame.quit()
-        sys.exit()
+        pygame.quit() # Pygame sauber beenden
+        sys.exit() # Skript beenden
 # --- Ende Standalone-Code ---

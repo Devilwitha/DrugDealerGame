@@ -22,20 +22,21 @@ big_blue_circle_filename = "glassTopDown.png"
 small_red_circle_filename = "small_red_circle.png"
 green_circle_image_filename = "tafelgan.png"
 
-# --- Hauptfunktion des Spiels (V4 mit PNGs) ---
+# --- Hauptfunktion des Spiels (V4 mit PNGs - Modifiziert für Rückgabe) ---
 def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, liquid_id, pills_id):
-    """ Führt das CockCrack Minispiel aus (V4 - PNG Support). """
+    """ Führt das CockCrack Minispiel aus (V4 - PNG Support).
+        Gibt 1 zurück, wenn ein Punkt erzielt wurde, sonst 0. """ # <- Docstring angepasst
     screen = screen_surface
     actual_screen_size = screen.get_size()
     screen_width, screen_height = actual_screen_size
     screen_center_x, screen_center_y = screen_width // 2, screen_height // 2
     print(f"DEBUG (cockCrack V4): Nutze Screen-Größe: {actual_screen_size}")
 
-    # Interne Statusvariablen
-    current_pills = start_pills
-    current_liquid = start_liquid
-    current_crack = start_crack
-    print(f"DEBUG (cockCrack V4): Startwerte: Pills={current_pills}, Liquid={current_liquid}, Crack={current_crack}")
+    # Ignoriere start_pills, start_liquid, start_crack für diese spezielle Verwendung.
+    # Wir geben nur zurück, ob *dieser Durchlauf* erfolgreich war.
+    # current_crack wird hier nicht mehr hochgezählt.
+
+    print(f"DEBUG (cockCrack V4): Starte Minispiel 2 zum Erzielen eines Punktes.")
 
     # --- Referenz-Dimensionen ---
     ref_w = 800.0
@@ -43,8 +44,9 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     FONT_SIZE_REF_H = 600.0
 
     # --- Mixer Initialisierung ---
-    score_sound = None
+    score_sound = None # Sound wird nur in Teil 1 abgespielt
     mixer_ok = False
+    # (Mixer Init Code bleibt gleich)
     if not pygame.mixer.get_init():
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=1024)
@@ -56,8 +58,9 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
         print("DEBUG (cockCrack V4): Mixer war bereits initialisiert.")
         mixer_ok = True
 
+
     # --- Android Immersive Mode & Platform Detection ---
-    # ... (Code für Immersive Mode bleibt unverändert) ...
+    # (Android Code bleibt gleich)
     is_android = False
     try:
         from jnius import autoclass
@@ -91,27 +94,28 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
             runnable = SetUiVisibilityRunnablePJC(activity, flags)
             if activity: activity.runOnUiThread(runnable); print("DEBUG (cockCrack V4): Immersive Mode sollte aktiv sein.")
         except Exception as e_immersive: print(f"FEHLER (cockCrack V4): Android Immersive Mode fehlgeschlagen: {e_immersive}"); is_android = False
-    # --- Android Immersive Mode Ende ---
+
 
     # --- Pfad-Setup für Assets ---
+    # (Pfad Setup Code bleibt gleich)
     try: script_dir_game = os.path.dirname(os.path.abspath(__file__))
     except NameError: script_dir_game = os.path.abspath(".")
     project_root = os.path.abspath(os.path.join(script_dir_game, "..", "..", ".."))
     data_folder = os.path.join(project_root, "data")
-    sound_folder = os.path.join(data_folder, "sounds")
+    sound_folder = os.path.join(data_folder, "sounds") # Obwohl Sound hier nicht verwendet wird
     image_folder = os.path.join(data_folder, "bilder")
     print(f"DEBUG (cockCrack V4): Sound folder: {sound_folder}, Image folder: {image_folder}")
 
     # --- Spiel Elemente Setup ---
+    # (Element Setup Code bleibt gleich)
     big_circle_radius = int(min(screen_width, screen_height) * 0.35)
     big_circle_center = (screen_center_x, screen_center_y)
     small_circle_radius = int(big_circle_radius * 0.1)
     small_circle_pos = list(big_circle_center)
     small_circle_last_pos = list(small_circle_pos)
     movement_percentage = 0.0
-    DISTANCE_FOR_100_PERCENT = big_circle_radius * 10.0
+    DISTANCE_FOR_100_PERCENT = big_circle_radius * 10.0 # Beispielwert, evtl. anpassen
 
-    # --- Grüne Kreise Setup ---
     NUM_GREEN_CIRCLES = 4
     green_circle_initial_radius = int(small_circle_radius * 1.5)
     green_circle_positions = []
@@ -125,7 +129,9 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     green_circle_positions.append((big_circle_center[0] - offset_dist, big_circle_center[1])) # Links
     green_circle_positions.append((big_circle_center[0] + offset_dist, big_circle_center[1])) # Rechts
 
+
     # --- Laden und Skalieren der Bilder ---
+    # (Bild Ladecode bleibt gleich)
     scaled_background_image = None
     use_background_image = False
     scaled_big_blue_circle_image = None
@@ -182,6 +188,7 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
 
 
     # --- Schriftarten ---
+    # (Schriftart Code bleibt gleich)
     BASE_GAME_FONT_SIZE = 36
     game_font_size = max(12, int(screen_height * (BASE_GAME_FONT_SIZE / FONT_SIZE_REF_H)))
     font = None
@@ -190,21 +197,15 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
     if not font: font = pygame.font.Font(None, 30); game_font_size = 30
 
     status_pos_x = max(10, int(screen_width * 0.02))
-    status_pos_y = max(60, int(screen_height * 0.1))
+    status_pos_y = max(60, int(screen_height * 0.1)) # Position etwas nach unten
+
 
     # --- Sounds laden ---
-    sound_filename_score = "bagFinish.wav"
-    sound_path_score = os.path.join(sound_folder, sound_filename_score)
-    if mixer_ok:
-        try:
-            score_sound = pygame.mixer.Sound(sound_path_score)
-            score_sound.set_volume(0.9)
-        except Exception as e:
-            print(f"WARNUNG (cockCrack V4): Score-Sound laden fehlgeschlagen: {e}")
-            score_sound = None
+    # (Kein Sound-Laden hier nötig, da in Teil 1)
 
     # --- UI Elemente ---
     # Zurück-Button (unverändert)
+    # (Button Code bleibt gleich)
     BACK_BUTTON_WIDTH_PERCENT, BACK_BUTTON_HEIGHT_PERCENT, BASE_BACK_FONT_SIZE = 0.20, 0.08, 24
     back_button_width = int(screen_width * BACK_BUTTON_WIDTH_PERCENT)
     back_button_height = int(screen_height * BACK_BUTTON_HEIGHT_PERCENT)
@@ -218,8 +219,10 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
         try: back_button_font = pygame.font.Font(None, int(back_font_size*1.1)); back_text_surface = back_button_font.render("Zurück", True, BLACK)
         except: pass
 
+
     # --- Spielzustands-Variablen ---
     dragging_red_circle = False
+    point_scored_in_this_run = 0 # NEU: Variable für Rückgabewert
 
     clock = pygame.time.Clock()
     last_time = time.time()
@@ -234,49 +237,49 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
 
         # --- Event Handling ---
         for event in pygame.event.get():
-            # ... (Event Handling für QUIT, ESCAPE, MOUSEBUTTONDOWN, MOUSEBUTTONUP bleibt gleich wie in V3) ...
+            # (Event Handling für QUIT, ESCAPE, MOUSEBUTTONDOWN, MOUSEBUTTONUP bleibt gleich)
             if event.type == pygame.QUIT:
                  print("WARNUNG (cockCrack V4): QUIT Event empfangen. Beende nur Minispiel-Loop.")
                  running = False
-                 continue
+                 continue # Direkt zum nächsten Frame/Loop-Ende
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                    continue
+                    continue # Direkt zum nächsten Frame/Loop-Ende
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
+                if event.button == 1: # Linksklick
+                    # Zurück Button
                     if back_button_rect and back_button_rect.collidepoint(event.pos):
                         running = False
-                        continue
+                        continue # Direkt zum nächsten Frame/Loop-Ende
+
+                    # Klick auf roten Kreis?
                     dist_x = event.pos[0] - small_circle_pos[0]
                     dist_y = event.pos[1] - small_circle_pos[1]
-                    # Klickprüfung mit Radius des roten Kreises (oder Bildgröße, falls Bild genutzt wird)
                     click_radius_check = small_circle_radius
                     if use_small_red_circle_image and scaled_small_red_circle_image:
-                         click_radius_check = scaled_small_red_circle_image.get_width() / 2
-
+                         click_radius_check = scaled_small_red_circle_image.get_width() / 2.0 # Float division
                     if math.hypot(dist_x, dist_y) <= click_radius_check:
                         dragging_red_circle = True
-                        small_circle_last_pos = list(small_circle_pos)
+                        small_circle_last_pos = list(small_circle_pos) # Position merken
 
             if event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:
+                if event.button == 1: # Linksklick loslassen
                     if dragging_red_circle:
                         dragging_red_circle = False
 
             if event.type == pygame.MOUSEMOTION:
                 if dragging_red_circle:
+                    # (Bewegungslogik bleibt gleich)
                     potential_pos_x = event.pos[0]
                     potential_pos_y = event.pos[1]
                     vec_x = potential_pos_x - big_circle_center[0]
                     vec_y = potential_pos_y - big_circle_center[1]
                     dist_from_center = math.hypot(vec_x, vec_y)
 
-                    # Radius-Check: Nehme den kleineren Radius für die Kollisionsgrenze
-                    # (entweder geometrisch oder vom Bild)
                     red_radius_for_collision = small_circle_radius
                     if use_small_red_circle_image and scaled_small_red_circle_image:
-                        red_radius_for_collision = scaled_small_red_circle_image.get_width() / 2
+                        red_radius_for_collision = scaled_small_red_circle_image.get_width() / 2.0 # Float
 
                     max_dist = big_circle_radius - red_radius_for_collision
                     final_pos_x = potential_pos_x
@@ -287,34 +290,44 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                             scale = max_dist / dist_from_center
                             final_pos_x = big_circle_center[0] + vec_x * scale
                             final_pos_y = big_circle_center[1] + vec_y * scale
-                        else:
+                        else: # Genau im Zentrum, sollte nicht passieren bei dist > 0
                             final_pos_x = big_circle_center[0]
                             final_pos_y = big_circle_center[1]
 
                     small_circle_pos[0] = final_pos_x
                     small_circle_pos[1] = final_pos_y
 
+                    # Bewegungsdistanz berechnen
                     moved_dist = math.hypot(small_circle_pos[0] - small_circle_last_pos[0],
                                             small_circle_pos[1] - small_circle_last_pos[1])
 
+                    # Fortschritt erhöhen
                     if moved_dist > 0 and DISTANCE_FOR_100_PERCENT > 0:
                         percentage_increase = (moved_dist / DISTANCE_FOR_100_PERCENT) * 100
                         movement_percentage += percentage_increase
 
+                    # Punkt erzielt?
                     if movement_percentage >= 100.0:
-                        current_crack += 1
-                        movement_percentage = 0.0 # Reset
-                        print(f"INFO: Punkt erzielt! Neuer Crack-Stand: {current_crack}")
-                        if score_sound:
-                            score_sound.play()
+                        print("INFO (cockCrack V4): Punkt in Minispiel 2 erzielt!")
+                        point_scored_in_this_run = 1 # NEU: Erfolg signalisieren
+                        running = False # NEU: Minispiel beenden
+                        # Sound wird in Teil 1 gespielt
+                        # Reset von movement_percentage ist nicht mehr nötig, da wir beenden
+                        # current_crack wird hier nicht mehr gezählt
+                        # Direkt zum Loop-Ende springen
+                        continue
 
+                    # Letzte Position für nächste Distanzberechnung speichern
                     small_circle_last_pos = list(small_circle_pos)
 
-        # --- Spiel-Logik Update ---
+        # --- Spiel-Logik Update (außerhalb Event-Loop) ---
+        # (Grüne Kreise Skalierung bleibt gleich)
         scale_factor = max(0.0, 1.0 - (min(movement_percentage, 100.0) / 100.0))
         current_green_radius = int(green_circle_initial_radius * scale_factor)
 
+
         # --- Zeichnen ---
+        # (Zeichenlogik bleibt unverändert)
         # Hintergrund
         if use_background_image and scaled_background_image:
             screen.blit(scaled_background_image, (0, 0))
@@ -338,7 +351,7 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
                         img_rect_green = scaled_green_image.get_rect(center=position)
                         screen.blit(scaled_green_image, img_rect_green)
                     except Exception as e_scale:
-                        print(f"WARNUNG: Skalieren des grünen Kreises fehlgeschlagen: {e_scale}")
+                        #print(f"WARNUNG: Skalieren des grünen Kreises fehlgeschlagen: {e_scale}") # Weniger Spam
                         pygame.draw.circle(screen, GREEN, position, current_green_radius) # Geometrie Fallback bei Fehler
                 else:
                     pygame.draw.circle(screen, GREEN, position, current_green_radius) # Geometrie Fallback
@@ -353,15 +366,19 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
 
         # UI zeichnen (Texte)
         if font:
-            crack_text_surf = font.render(f"Crack: {current_crack}", True, RED)
-            crack_text_rect = crack_text_surf.get_rect(topleft=(status_pos_x, status_pos_y))
-            screen.blit(crack_text_surf, crack_text_rect)
+            # Crack-Anzeige hier nicht mehr relevant
+            # crack_text_surf = font.render(f"Crack: {current_crack}", True, RED)
+            # crack_text_rect = crack_text_surf.get_rect(topleft=(status_pos_x, status_pos_y))
+            # screen.blit(crack_text_surf, crack_text_rect)
 
+            # Nur Fortschritt anzeigen
             percent_text_surf = font.render(f"Fortschritt: {min(movement_percentage, 100.0):.0f}%", True, GREEN)
-            percent_text_rect = percent_text_surf.get_rect(topleft=(status_pos_x, crack_text_rect.bottom + 10))
+            # percent_text_rect = percent_text_surf.get_rect(topleft=(status_pos_x, crack_text_rect.bottom + 10))
+            percent_text_rect = percent_text_surf.get_rect(topleft=(status_pos_x, status_pos_y)) # Startet jetzt oben
             screen.blit(percent_text_surf, percent_text_rect)
 
         # Zurück Button zeichnen
+        # (Button Zeichencode bleibt gleich)
         if back_button_rect:
             btn_color = GRAY
             if back_button_rect.collidepoint(mouse_pos): btn_color = DARK_GRAY
@@ -375,16 +392,16 @@ def run_cock_crack_game(screen_surface, start_pills, start_liquid, start_crack, 
         clock.tick(60)
 
     # --- Ende der Spiel-Schleife ---
-    print("INFO (cockCrack V4): Minispiel-Schleife beendet.")
+    print(f"INFO (cockCrack V4): Minispiel-Schleife beendet. Rückgabewert: {point_scored_in_this_run}")
 
-    # Gebe die finalen Werte zurück
-    return current_pills, current_liquid, current_crack
+    # Gebe zurück, ob ein Punkt erzielt wurde
+    return point_scored_in_this_run # WICHTIG: Gib den neuen Wert zurück
 
 # --- Ende der run_cock_crack_game Funktion ---
 
 # --- Code für Standalone-Ausführung ---
 if __name__ == "__main__":
-    print("INFO: cockCrack.py wird eigenständig ausgeführt (V4 mit PNGs).")
+    print("INFO: cockCrackPart2.py wird eigenständig ausgeführt (V4 mit PNGs).")
     pygame.init()
     if not pygame.mixer.get_init():
         try: pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=1024)
@@ -396,23 +413,24 @@ if __name__ == "__main__":
     pygame.display.set_caption("CockCrack Minispiel (Standalone - V4)")
 
     try:
+        # Für Standalone ist der Start-Crack egal, da er hier nicht gezählt wird.
+        # Die anderen Werte sind auch irrelevant für die Logik hier.
         start_pills_sa = 0
         start_liquid_sa = 0
         start_crack_sa = 0
         liquid_name_sa = ""
         pills_name_sa = ""
-        print(f"\n--- Starte Standalone CockCrack (V4) mit: Crack={start_crack_sa} ---\n")
+        print(f"\n--- Starte Standalone CockCrack (V4) ---\n")
 
+        # Rufe die Funktion auf, das Ergebnis ist hier nur für Debugging interessant
         result_sa = run_cock_crack_game(
             standalone_screen, start_pills_sa, start_liquid_sa, start_crack_sa, liquid_name_sa, pills_name_sa
         )
 
-        if result_sa:
-            print(f"\n--- Standalone CockCrack (V4) Beendet. Ergebnis: ---")
-            print(f"  Produziertes Crack: {result_sa[2]}")
-            print("----------------------------------------------------\n")
-        else:
-            print("\n--- Standalone CockCrack (V4) Beendet. Kein Ergebnis zurückgegeben. ---\n")
+        # Das zurückgegebene Ergebnis (0 oder 1) wird normalerweise von cockCrack.py verarbeitet.
+        print(f"\n--- Standalone CockCrack (V4) Beendet. Ergebnis (0=Abbruch, 1=Punkt): {result_sa} ---")
+        print("--------------------------------------------------------------------------------\n")
+
 
     except Exception as e_main:
         print(f"FEHLER in Standalone: {e_main}")
