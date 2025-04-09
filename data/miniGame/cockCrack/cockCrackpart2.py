@@ -18,7 +18,7 @@ DARK_GRAY = (150, 150, 150)
 
 # --- NEU: Dateinamen für Bilder ---
 background_image_filename = "laborTable.png"
-big_blue_circle_filename = "big_blue_circle.png"
+big_blue_circle_filename = "glassTopDown.png"
 small_red_circle_filename = "small_red_circle.png"
 green_circle_image_filename = "tafelgan.png"
 
