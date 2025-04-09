@@ -405,8 +405,12 @@ def run_zip_weed_game(screen_surface):
             # Mouse/Touch Events
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if back_button_rect and back_button_rect.collidepoint(event.pos): running = False; continue
-                if tilt_left_button_rect.collidepoint(event.pos): touch_tilting_left = True; continue
-                if tilt_right_button_rect.collidepoint(event.pos): touch_tilting_right = True; continue
+
+                # >>> ÄNDERUNG HIER: Prüfe Kollision mit Touch-Buttons nur, wenn is_android True ist <<<
+                if is_android:
+                    if tilt_left_button_rect.collidepoint(event.pos): touch_tilting_left = True; continue
+                    if tilt_right_button_rect.collidepoint(event.pos): touch_tilting_right = True; continue
+                # >>> ENDE ÄNDERUNG <<<
 
                 clicked_on_circle = False
                 for i in range(NUM_CIRCLES - 1, -1, -1):
@@ -418,7 +422,11 @@ def run_zip_weed_game(screen_surface):
                     container_offset_x = container_rect.x - event.pos[0]; container_offset_y = container_rect.y - event.pos[1]
 
             if event.type == pygame.MOUSEBUTTONUP:
-                 touch_tilting_left = False; touch_tilting_right = False
+                 # >>> ÄNDERUNG HIER: Setze Touch-Flags nur zurück, wenn is_android True ist <<<
+                 if is_android:
+                    touch_tilting_left = False
+                    touch_tilting_right = False
+                 # >>> ENDE ÄNDERUNG <<<
 
                  if dragging_circle_index != -1:
                      released_index = dragging_circle_index; dragging_circle_index = -1; is_supported = False
@@ -442,8 +450,7 @@ def run_zip_weed_game(screen_surface):
                              is_horizontally_overlapping_cont = (container_rect.right > target_rect.left and container_rect.left < target_rect.right)
                              if is_horizontally_overlapping_cont and container_rect.bottom >= target_rect.bottom: on_target_bottom = True
                          if not on_target_bottom:
-                             # !!! HIER WIRD container_falling GESETZT !!!
-                             # Wir lassen dies zu, aber die Gravitation wird nur angewendet, wenn NICHT Android
+                             # Container darf fallen (Gravitation wird später nur angewendet, wenn NICHT Android)
                              container_falling = True
 
 
@@ -471,8 +478,8 @@ def run_zip_weed_game(screen_surface):
 
             # Container Kippen
             effective_tilt = 0
-            if tilting_left or touch_tilting_left: effective_tilt -= 1
-            if tilting_right or touch_tilting_right: effective_tilt += 1
+            if tilting_left or touch_tilting_left: effective_tilt -= 1 # touch_tilting_left wird nur auf Android gesetzt
+            if tilting_right or touch_tilting_right: effective_tilt += 1 # touch_tilting_right wird nur auf Android gesetzt
             if effective_tilt != 0:
                 container_angle -= effective_tilt * TILT_SPEED * dt
                 container_angle = max(-MAX_TILT_ANGLE, min(MAX_TILT_ANGLE, container_angle))
@@ -514,7 +521,7 @@ def run_zip_weed_game(screen_surface):
                         active_particles.append(p)
 
             # Physik für Container (Gravitation)
-            # >>> HIER IST DIE ÄNDERUNG: Gravitation nur wenn NICHT Android <<<
+            # Gravitation nur wenn NICHT Android
             if container_falling and not dragging_container and not is_android:
                 potential_cont_rect = container_rect.move(0, circle_gravity_value)
                 screen_height = actual_screen_size[1]
@@ -527,7 +534,7 @@ def run_zip_weed_game(screen_surface):
                 # Prüfen, ob Zielboden erreicht
                 elif target_rect:
                     is_horizontally_overlapping_cont = (potential_cont_rect.right > target_rect.left and
-                                                          potential_cont_rect.left < target_rect.right)
+                                                        potential_cont_rect.left < target_rect.right)
                     # Nur stoppen, wenn vorher drüber und jetzt drunter/drauf
                     if is_horizontally_overlapping_cont and \
                        container_rect.bottom <= target_rect.bottom and \
@@ -553,7 +560,7 @@ def run_zip_weed_game(screen_surface):
                         stopped_falling = True
                     elif target_rect:
                         is_horizontally_overlapping_circle = (potential_rect.right > target_rect.left and
-                                                                potential_rect.left < target_rect.right)
+                                                              potential_rect.left < target_rect.right)
                         if is_horizontally_overlapping_circle and \
                            current_rect.bottom <= target_rect.bottom and \
                            potential_rect.bottom > target_rect.bottom:
@@ -571,7 +578,7 @@ def run_zip_weed_game(screen_surface):
                     if target_rect and p.y > target_rect.bottom and target_rect.left < p.x < target_rect.right:
                         p.lifetime = 0
                     elif p.y > actual_screen_size[1] - p.radius:
-                            p.lifetime = 0
+                             p.lifetime = 0
                     # Nur "lebende" Partikel behalten
                     if p.lifetime > 0:
                         particles_alive.append(p)
@@ -688,14 +695,19 @@ def run_zip_weed_game(screen_surface):
              progress_percent = min(progress_percent, 100)
              progress_text = info_font.render(f"Ziel Füllung: {progress_percent:.0f}%", True, POUR_PROGRESS_COLOR)
              screen.blit(progress_text, (progress_pos_x, progress_pos_y))
-        # Touch Buttons (Layout geändert)
-        pygame.draw.rect(screen, GRAY if not touch_tilting_left else DARK_GRAY, tilt_left_button_rect, border_radius=5)
-        pygame.draw.rect(screen, BLACK, tilt_left_button_rect, 2, border_radius=5)
-        if left_arrow_surf and left_arrow_rect : screen.blit(left_arrow_surf, left_arrow_rect)
-        pygame.draw.rect(screen, GRAY if not touch_tilting_right else DARK_GRAY, tilt_right_button_rect, border_radius=5)
-        pygame.draw.rect(screen, BLACK, tilt_right_button_rect, 2, border_radius=5)
-        if right_arrow_surf and right_arrow_rect: screen.blit(right_arrow_surf, right_arrow_rect)
-        # Zurück Button
+
+        # >>> ÄNDERUNG HIER: Zeichne Touch-Buttons nur, wenn is_android True ist <<<
+        if is_android:
+            # Touch Buttons (Layout geändert)
+            pygame.draw.rect(screen, GRAY if not touch_tilting_left else DARK_GRAY, tilt_left_button_rect, border_radius=5)
+            pygame.draw.rect(screen, BLACK, tilt_left_button_rect, 2, border_radius=5)
+            if left_arrow_surf and left_arrow_rect : screen.blit(left_arrow_surf, left_arrow_rect)
+            pygame.draw.rect(screen, GRAY if not touch_tilting_right else DARK_GRAY, tilt_right_button_rect, border_radius=5)
+            pygame.draw.rect(screen, BLACK, tilt_right_button_rect, 2, border_radius=5)
+            if right_arrow_surf and right_arrow_rect: screen.blit(right_arrow_surf, right_arrow_rect)
+        # >>> ENDE ÄNDERUNG <<<
+
+        # Zurück Button (immer zeichnen)
         if back_button_rect:
              back_button_color = GRAY
              try:
