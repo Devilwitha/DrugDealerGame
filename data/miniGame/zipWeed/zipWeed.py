@@ -41,33 +41,60 @@ def run_zip_weed_game(screen_surface, initial_weed, initial_grips, sorte_name):
         print("DEBUG (zipWeed): Mixer war bereits initialisiert.")
         mixer_ok = True # Mixer ist verfügbar
 
-    # --- Android Immersive Mode ---
-    is_android = False
-    # ... (Code für Immersive Mode bleibt unverändert, hier gekürzt für Übersicht) ...
-    try:
-        from jnius import autoclass, cast, PythonJavaClass, java_method; print("DEBUG (zipWeed): Pyjnius importiert.")
-        try: Build = autoclass('android.os.Build$VERSION'); sdk_int = Build.SDK_INT
-        except Exception as e_build: print(f"FEHLER (zipWeed): Build laden fehlgeschlagen: {e_build}"); raise
-        if sdk_int > 0: is_android = True; print(f"DEBUG (zipWeed): Android erkannt (SDK: {sdk_int}).")
-        else: raise RuntimeError("Nicht Android")
-        try: PythonActivity = autoclass('org.kivy.android.PythonActivity'); activity = PythonActivity.mActivity; assert activity is not None
-        except Exception as e_activity: print(f"FEHLER (zipWeed): Activity holen fehlgeschlagen: {e_activity}"); raise
-        try: View = autoclass('android.view.View'); Window = autoclass('android.view.Window'); WindowManager = autoclass('android.view.WindowManager$LayoutParams')
-        except Exception as e_classes: print(f"FEHLER (zipWeed): View/Window Klassen laden fehlgeschlagen: {e_classes}"); raise
-        try:
-            flags = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
-            class SetUiVisibilityRunnablePJC(PythonJavaClass):
+    # --- Android Immersive Mode & Platform Detection --- ### WICHTIG ###
+    is_android = False # Standardmäßig nicht Android
+    try: # Android Specific Code
+        from jnius import autoclass, cast, PythonJavaClass, java_method
+        print("DEBUG (zipWeed): Pyjnius importiert.")
+        Build = autoclass('android.os.Build$VERSION')
+        sdk_int = Build.SDK_INT
+        if sdk_int > 0:
+            is_android = True # Hier wird erkannt, dass es Android ist
+            print(f"DEBUG (zipWeed): Android erkannt (SDK: {sdk_int}).")
+        else:
+             raise RuntimeError("Nicht Android") # Explizit Fehler werfen wenn SDK <= 0
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        activity = PythonActivity.mActivity
+        assert activity is not None # Stellen sicher, dass wir eine Activity haben
+        View = autoclass('android.view.View')
+        Window = autoclass('android.view.Window')
+        WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+        flags = (
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+        )
+        class SetUiVisibilityRunnablePJC(PythonJavaClass):
                 __javainterfaces__ = ['java/lang/Runnable']
-                def __init__(self, a, f): super().__init__(); self.a = a; self.f = f
+                def __init__(self, a, f):
+                    super().__init__()
+                    self.a = a
+                    self.f = f
                 @java_method('()V')
                 def run(self):
-                    try: w = self.a.getWindow(); d = w.getDecorView(); d.setSystemUiVisibility(self.f); w.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
-                    except Exception as e: print(f"FEHLER (Runnable): {e}"); traceback.print_exc()
-            runnable = SetUiVisibilityRunnablePJC(activity, flags)
-            if activity: activity.runOnUiThread(runnable); print("DEBUG (zipWeed): Runnable Immersive gestartet.")
-        except Exception as e_runnable: print(f"FEHLER (zipWeed): Runnable Setup fehlgeschlagen: {e_runnable}"); raise
-    except Exception as e: print(f"FEHLER (zipWeed): Immersive Mode fehlgeschlagen: {e}"); is_android = False
-    # --- Ende Immersive Mode ---
+                    try:
+                        w = self.a.getWindow()
+                        d = w.getDecorView()
+                        d.setSystemUiVisibility(self.f)
+                        w.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                    except Exception as e:
+                        print(f"FEHLER (Runnable): {e}")
+                        traceback.print_exc()
+        runnable = SetUiVisibilityRunnablePJC(activity, flags)
+        if activity:
+            activity.runOnUiThread(runnable)
+            print("DEBUG (zipWeed): Runnable Immersive gestartet.")
+    except ImportError:
+        print("INFO (zipWeed): Pyjnius nicht gefunden. Nehme an, es ist nicht Android.")
+        is_android = False # Sicherstellen, dass es False ist, wenn Import fehlschlägt
+    except Exception as e:
+        print(f"FEHLER oder Info (zipWeed): Immersive Mode fehlgeschlagen oder nicht Android: {e}")
+        # traceback.print_exc() # Optional: Traceback nur bei echtem Fehler anzeigen
+        is_android = False # Sicherstellen, dass es False ist bei anderen Fehlern
+
 
 
     # --- Proportionale Berechnungen ---

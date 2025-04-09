@@ -4,11 +4,77 @@ import sys
 import os
 import traceback
 
+# --- Pfad zum Skriptverzeichnis ermitteln ---
+# Dies ist der entscheidende Teil für Android-Kompatibilität
+try:
+    # __file__ gibt den Pfad zur aktuell ausgeführten Datei an
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"DEBUG: Skriptverzeichnis ermittelt: {script_dir}")
+except NameError:
+    # Fallback, falls __file__ nicht definiert ist (z.B. in manchen interaktiven Umgebungen)
+    script_dir = os.getcwd()
+    print(f"WARNUNG: __file__ nicht gefunden, nutze aktuelles Arbeitsverzeichnis: {script_dir}")
+
+
 # --- Pfad zur Musikdatei ---
-# !!! ÄNDERE DIES ZUM KORREKTEN PFAD DEINER .WAV DATEI !!!
-# Annahme: Das Skript liegt im Hauptordner, und die Musik ist in data/sounds/background/
-script_dir = os.path.dirname(__file__) # Verzeichnis des aktuellen Skripts
+# Konstruiere den Pfad RELATIV zum Skriptverzeichnis
 music_file_path = os.path.join(script_dir, "data", "sounds", "background", "menu_background_music.wav")
+print(f"DEBUG: Vollständiger Pfad zur Musikdatei wird sein: {music_file_path}")
+# ------------------------------------
+
+# --- Android Immersive Mode & Platform Detection --- ### WICHTIG ###
+is_android = False # Standardmäßig nicht Android
+try: # Android Specific Code
+    from jnius import autoclass, cast, PythonJavaClass, java_method
+    print("DEBUG (zipWeed): Pyjnius importiert.")
+    Build = autoclass('android.os.Build$VERSION')
+    sdk_int = Build.SDK_INT
+    if sdk_int > 0:
+        is_android = True # Hier wird erkannt, dass es Android ist
+        print(f"DEBUG (zipWeed): Android erkannt (SDK: {sdk_int}).")
+    else:
+         raise RuntimeError("Nicht Android") # Explizit Fehler werfen wenn SDK <= 0
+    PythonActivity = autoclass('org.kivy.android.PythonActivity')
+    activity = PythonActivity.mActivity
+    assert activity is not None # Stellen sicher, dass wir eine Activity haben
+    View = autoclass('android.view.View')
+    Window = autoclass('android.view.Window')
+    WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+    flags = (
+        View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+        View.SYSTEM_UI_FLAG_FULLSCREEN |
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    )
+    class SetUiVisibilityRunnablePJC(PythonJavaClass):
+            __javainterfaces__ = ['java/lang/Runnable']
+            def __init__(self, a, f):
+                super().__init__()
+                self.a = a
+                self.f = f
+            @java_method('()V')
+            def run(self):
+                try:
+                    w = self.a.getWindow()
+                    d = w.getDecorView()
+                    d.setSystemUiVisibility(self.f)
+                    w.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                except Exception as e:
+                    print(f"FEHLER (Runnable): {e}")
+                    traceback.print_exc()
+    runnable = SetUiVisibilityRunnablePJC(activity, flags)
+    if activity:
+        activity.runOnUiThread(runnable)
+        print("DEBUG (zipWeed): Runnable Immersive gestartet.")
+except ImportError:
+    print("INFO (zipWeed): Pyjnius nicht gefunden. Nehme an, es ist nicht Android.")
+    is_android = False # Sicherstellen, dass es False ist, wenn Import fehlschlägt
+except Exception as e:
+    print(f"FEHLER oder Info (zipWeed): Immersive Mode fehlgeschlagen oder nicht Android: {e}")
+    # traceback.print_exc() # Optional: Traceback nur bei echtem Fehler anzeigen
+    is_android = False # Sicherstellen, dass es False ist bei anderen Fehlern
 
 # --- Importiere die Minispiel-Skripte ---
 # Stelle sicher, dass die Pfade korrekt sind, relativ zu diesem Skript
@@ -33,6 +99,7 @@ except Exception as e_zw:
 cockCrackGame = None
 try:
     print(f"DEBUG: Versuche Import von: data.miniGame.cockCrack.cockCrack")
+    # Importiert das Paket/Modul
     import data.miniGame.cockCrack.cockCrack as cockCrackGame
     print(f"DEBUG: Import von {cockCrackGame.__name__} erfolgreich.")
 except ImportError as e_imp_cc:
@@ -67,9 +134,8 @@ try:
     SCREEN_WIDTH = info.current_w
     SCREEN_HEIGHT = info.current_h
     print(f"Hauptmenü Bildschirmgröße erkannt: {SCREEN_WIDTH}x{SCREEN_HEIGHT}")
-    # Setze den Modus auf Fullscreen oder Scaled
-    # screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED) # SCALED passt sich an, FULLSCREEN erzwingt Größe
+    # Setze den Modus auf Scaled (passt sich an, Fullscreen kann Probleme machen)
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
 except Exception as e_display:
     print(f"Konnte Bildschirmgröße nicht ermitteln oder Modus nicht setzen: {e_display}. Nutze Standardgröße 800x600.")
     SCREEN_WIDTH = 800
@@ -190,10 +256,12 @@ clock = pygame.time.Clock()
 music_playing = False
 if mixer_initialized:
     # Überprüfe, ob die Datei existiert, BEVOR du versuchst, sie zu laden
+    # Verwende den NEUEN, potenziell absoluten Pfad
+    print(f"DEBUG: Prüfe Existenz von: {music_file_path}") # Zusätzliches Debugging
     if os.path.exists(music_file_path):
         try:
             pygame.mixer.music.load(music_file_path)
-            print(f"INFO: Musikdatei '{music_file_path}' geladen.")
+            print(f"INFO: Musikdatei '{music_file_path}' (existiert) geladen.")
             pygame.mixer.music.play(loops=-1) # -1 für unendlichen Loop
             print("INFO: Musikwiedergabe gestartet (Looping).")
             music_playing = True
@@ -201,8 +269,13 @@ if mixer_initialized:
             print(f"FEHLER: Musikdatei '{music_file_path}' konnte nicht geladen oder abgespielt werden: {e_load_music}")
             print(">>> Stelle sicher, dass die WAV-Datei nicht korrupt ist und vom Mixer unterstützt wird.")
     else:
-        print(f"FEHLER: Musikdatei nicht gefunden unter dem Pfad: '{os.path.abspath(music_file_path)}'")
-        print(">>> Überprüfe den Pfad in der Variable 'music_file_path' am Anfang des Skripts.")
+        # Gib den Pfad aus, den Python zu finden versucht hat
+        print(f"FEHLER: Musikdatei nicht gefunden unter dem konstruierten Pfad: '{music_file_path}'")
+        print(f">>> Aktuelles Arbeitsverzeichnis: {os.getcwd()}") # Immer noch nützlich zum Vergleich
+        print(f">>> Verzeichnis des Skripts (__file__): {script_dir}") # Zeigt, wo das Skript liegt
+        print(">>> Überprüfe:")
+        print("    1. Ob die Datei 'menu_background_music.wav' wirklich im Unterordner 'data/sounds/background' relativ zum Skript liegt.")
+        print("    2. Ob dieser Ordner und die Datei korrekt mit der App gepackt wurden (z.B. in buildozer.spec).")
 else:
     print("INFO: Mixer wurde nicht initialisiert, keine Musikwiedergabe.")
 # --- Ende Musik Laden ---
@@ -277,11 +350,10 @@ while menu_running:
                         try:
                             # MUSIK LÄUFT HIER WEITER!
                             print(f"DEBUG: Rufe cockCrackGame.run_cock_crack_game mit screen, pills={pills}, liquid={liquid}, Crack={Crack}, liquidName='{liquidName}', pillsName='{pillsName}' auf")
-                            # Versuche, die Funktion dynamisch zu finden, falls der Name unklar ist
-                            # (Behalte "run_cock_crack_game" bei, wenn der Name sicher ist)
-                            function_to_call_cc = getattr(cockCrackGame, "run_cock_crack_game", None)
+                            # Direkter Aufruf der Funktion im importierten Modul
+                            function_to_call_cc = cockCrackGame.run_cock_crack_game
 
-                            if function_to_call_cc:
+                            if callable(function_to_call_cc): # Sicherstellen, dass es eine Funktion ist
                                 # WICHTIG: Die Minispiel-Funktion muss die Kontrolle zurückgeben!
                                 result_cc = function_to_call_cc(screen, pills, liquid, Crack, liquidName, pillsName)
 
@@ -307,14 +379,13 @@ while menu_running:
                                 print("INFO: Zurück im Hauptmenü nach CockCrack.")
                                 # MUSIK LÄUFT IMMER NOCH!
                             else:
-                                 # getattr hat None zurückgegeben -> Funktion nicht gefunden
-                                 print(f"FEHLER: Funktion 'run_cock_crack_game' nicht im Modul 'cockCrackGame' gefunden!")
+                                # function_to_call_cc war nicht aufrufbar
+                                print(f"FEHLER: 'run_cock_crack_game' in cockCrackGame ist nicht aufrufbar!")
 
                         # Spezifischere Fehlerbehandlung
                         except AttributeError as e_attr_cc:
-                            # Sollte durch getattr abgefangen werden, aber sicher ist sicher
                             print(f"FEHLER (AttributeError CockCrack): {e_attr_cc}")
-                            print(f">>> Funktion 'run_cock_crack_game' (oder eine ihrer internen Aufrufe) verursachte einen Fehler.")
+                            print(f">>> Funktion 'run_cock_crack_game' wurde nicht im Modul '{cockCrackGame.__name__}' gefunden.")
                             traceback.print_exc()
                         except TypeError as e_type_cc:
                             print(f"FEHLER (TypeError CockCrack): {e_type_cc}")
