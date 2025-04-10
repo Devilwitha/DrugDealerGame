@@ -46,9 +46,14 @@ back_button_bg_filename = "back_button_bg.png"
 back_button_hover_filename = "back_button_hover.png" # Für Hover-Effekt
 # NEU: Für Animation
 animation_filenames = [
-    "anim_frame_1.png",
-    "anim_frame_2.png",
-    "anim_frame_3.png",
+    "flame_anim_frame_1.png",
+    "flame_anim_frame_2.png",
+    "flame_anim_frame_3.png",
+    "flame_anim_frame_4.png",
+    "flame_anim_frame_5.png",
+    "flame_anim_frame_6.png",
+    "flame_anim_frame_7.png",
+    "flame_anim_frame_8.png",
     # "anim_frame_4.png", # Füge mehr hinzu, falls gewünscht
 ]
 
