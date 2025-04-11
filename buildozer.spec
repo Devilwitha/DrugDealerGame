@@ -29,8 +29,8 @@ source.include_patterns = assets/*,data/*
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 0.2
-#version = Release.miniGame
+version = 0.5.3
+#version = Release.miniGame.mainversion
 
 # (str) Application versioning (method 2)
 # version.regex = __version__ = ['"](.*)['"]
@@ -45,10 +45,10 @@ requirements = python3==3.10.12,pygame,cython,hostpython3==3.10.12,pyjnius==1.5.
 # requirements.source.kivy = ../../kivy
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/data/Bollisoft_logo.png
+presplash.filename = %(source.dir)s/data/apk/Bollisoft_logo.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/data/FIcon.ico
+icon.filename = %(source.dir)s/data/apk/FIcon.ico
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
