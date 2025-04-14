@@ -1,15 +1,15 @@
-# npc.py
+# npc.py (Angepasst für Typen und Dialog)
 import pygame
 import logging
 
-logger = logging.getLogger(__name__) # Logger für dieses Modul (__name__ wird zu "npc")
+logger = logging.getLogger(__name__)
 
 class NPC(pygame.sprite.Sprite):
     """
-    Eine einfache Klasse für einen Nicht-Spieler-Charakter (NPC).
-    Aktuell nur ein statischer Kreis.
+    Eine Klasse für Nicht-Spieler-Charaktere (NPCs).
+    Kann verschiedene Typen haben (z.B. 'generic', 'merchant').
     """
-    def __init__(self, x, y, radius, color):
+    def __init__(self, x, y, radius, color, npc_type="generic", dialog_id=None): # NEU: npc_type, dialog_id
         """
         Initialisiert den NPC.
 
@@ -18,30 +18,31 @@ class NPC(pygame.sprite.Sprite):
             y (int): Welt-Y-Koordinate des Mittelpunkts.
             radius (int): Radius des NPC-Kreises.
             color (tuple): Farbe des NPCs (RGB).
+            npc_type (str): Typ des NPCs (z.B. 'merchant').
+            dialog_id (str, optional): Start-ID für den Dialogbaum dieses NPCs. Defaults to None.
         """
         super().__init__()
-        logger.debug(f"Initialisiere NPC bei ({x}, {y}) mit Radius {radius}")
+        logger.debug(f"Initialisiere NPC Typ '{npc_type}' bei ({x}, {y}) mit Radius {radius}")
         self.radius = radius
-        # Erstelle das Aussehen des NPCs (hier ein einfacher Kreis)
+        self.npc_type = npc_type # NEU
+        self.dialog_id = dialog_id # NEU
+
+        # --- Aussehen (bleibt vorerst ein Kreis) ---
+        # In Zukunft könnte dies basierend auf npc_type ein Bild laden
         self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
         pygame.draw.circle(self.image, color, (radius, radius), radius)
-        # Setze das rect-Attribut basierend auf dem Mittelpunkt
         self.rect = self.image.get_rect(center=(x, y))
-        logger.info(f"NPC erstellt mit ID {id(self)} bei {self.rect.center}")
+        logger.info(f"NPC Typ '{self.npc_type}' erstellt mit ID {id(self)} bei {self.rect.center}")
 
     def update(self):
         """
-        Aktualisiert den Zustand des NPCs (z.B. Bewegung, Animation).
-        Momentan leer.
+        Aktualisiert den Zustand des NPCs. Momentan leer.
         """
-        # Hier könnte zukünftige Logik für NPC-Verhalten hinzukommen
-        # z.B. self.move_randomly()
         pass
 
-    def interact(self):
-        """Wird aufgerufen, wenn der Spieler mit dem NPC interagiert."""
-        # Beispiel-Interaktion: Gibt Nachricht auf Konsole aus.
-        logger.info(f"NPC {id(self)} bei {self.rect.center} interagiert.")
-        print(f"NPC bei ({self.rect.centerx}, {self.rect.centery}) sagt: 'Hallo!'")
-        # Hier könnte komplexere Dialog- oder Quest-Logik folgen.
-        pass
+    # Die interact Methode hier ist nicht mehr zwingend nötig,
+    # da die Logik in game.py anhand des Typs entscheidet, was passiert.
+    # Man könnte sie aber nutzen, um z.B. den Start-Dialog dynamisch zu machen.
+    # def interact(self):
+    #     logger.info(f"NPC {id(self)} ({self.npc_type}) interagiert.")
+    #     return self.dialog_id # Gibt z.B. die Dialog-ID zurück
