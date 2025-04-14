@@ -8,22 +8,21 @@ logger = logging.getLogger(__name__)
 #    "dialog_knoten_id": {
 #        "npc_text": "Was der NPC sagt.",
 #        "responses": [
-#            {"text": "Antwort 1 des Spielers", "action": "aktion_code", "next_node": "ziel_knoten_id_1"},
-#            {"text": "Antwort 2 des Spielers", "action": None, "next_node": "ziel_knoten_id_2"},
+#            {"text": "Antwort 1", "action": "code", "next_node": "ziel_id_1"},
 #            ...
 #        ]
 #    }, ...
 # }
-# Mögliche Aktions-Codes: "open_shop", "end_dialog", "quest_start_xy", None
+# Mögliche Aktions-Codes: "open_shop", "open_sell_menu", "end_dialog", None
 
 DIALOGS = {
+    # --- Händler Dialoge ---
     "händler_start": {
         "npc_text": "Sei gegrüßt, Reisender! Interessiert an feinen Waren?",
         "responses": [
             {"text": "Zeig mir, was du hast!", "action": "open_shop", "next_node": None},
             {"text": "Wie läuft das Geschäft?", "action": None, "next_node": "händler_geschäft"},
             {"text": "Nur mal umgesehen.", "action": "end_dialog", "next_node": None},
-            {"text": "Auf Wiedersehen.", "action": "end_dialog", "next_node": None}
         ]
     },
     "händler_geschäft": {
@@ -33,13 +32,43 @@ DIALOGS = {
             {"text": "Interessant. Lebewohl.", "action": "end_dialog", "next_node": None}
         ]
     },
+
+    # --- Client/Kunden Dialoge (NEU) ---
+    "client_start": {
+        "npc_text": "Psst... hast du was für mich? Ich zahle gut.",
+        "responses": [
+            {"text": "[Weed verkaufen]", "action": "open_sell_menu", "next_node": None}, # Aktion zum Öffnen des Verkaufs-UI
+            {"text": "Was suchst du denn?", "action": None, "next_node": "client_sucht"},
+            {"text": "Kein Interesse.", "action": "end_dialog", "next_node": None},
+        ]
+    },
+    "client_sucht": {
+        "npc_text": "Du weißt schon... das gute Zeug. Wenn du was hast, sag Bescheid.",
+        "responses": [
+            {"text": "[Weed verkaufen]", "action": "open_sell_menu", "next_node": None},
+            {"text": "Verstanden.", "action": "end_dialog", "next_node": None},
+        ]
+    },
+     "client_danke": { # Optional: Nach erfolgreichem Verkauf
+        "npc_text": "Gutes Geschäft. Meld dich wieder.",
+        "responses": [
+            {"text": "[Gehen]", "action": "end_dialog", "next_node": None}
+        ]
+    },
+     "client_zu_wenig": { # Optional: Wenn Spieler nicht genug hat
+        "npc_text": "Das ist nicht genug. Komm wieder, wenn du mehr hast.",
+        "responses": [
+            {"text": "[Okay]", "action": "end_dialog", "next_node": None}
+        ]
+    },
+
+    # --- Generischer Dialog ---
     "generic_hallo": {
          "npc_text": "Hallo.",
          "responses": [
              {"text": "[Gehen]", "action": "end_dialog", "next_node": None}
          ]
     }
-    # Füge hier weitere Dialoge oder Knoten hinzu
 }
 
 def get_dialog_node(node_id):

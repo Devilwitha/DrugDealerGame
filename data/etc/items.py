@@ -16,7 +16,8 @@ MAGENTA = (255, 0, 255)
 ICON_FILES = {
     "Blumentopf": "blumentopf_icon.png",
     "Sack Erde": "sack_erde_icon.png",
-    "Weed Seeds": "weed_seeds_icon.png"
+    "Weed Seeds": "weed_seeds_icon.png",
+    "Weed": "butt_icon.png"
 }
 
 PLACED_ITEM_STATE_FILES = {
