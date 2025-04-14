@@ -5,6 +5,13 @@ import time # Needed for PlacedItem interaction timer logic
 
 logger = logging.getLogger(__name__)
 
+WHITE = (255, 255, 255); 
+BLACK = (0, 0, 0); 
+GREEN = (0, 200, 0); 
+RED = (255, 0, 0); 
+BLUE = (0, 0, 255); 
+MAGENTA = (255, 0, 255)
+
 # --- Item Definitions ---
 ICON_FILES = {
     "Blumentopf": "blumentopf_icon.png",

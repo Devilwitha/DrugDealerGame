@@ -8,18 +8,18 @@ import time
 import traceback
 import locale
 
-# Optional: Locale für Währungsformat
-try: locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
-except locale.Error:
-    try: locale.setlocale(locale.LC_ALL, 'German_Germany.1252')
-    except locale.Error: logger.warning("Konnte deutsche Locale für Währung nicht setzen, verwende Standard.")
-
 # --- Logging Konfiguration ---
 log_format = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
 log_level = logging.DEBUG
 date_fmt = '%Y-%m-%d %H:%M:%S'
 logging.basicConfig(level=log_level, format=log_format, datefmt=date_fmt)
 logger = logging.getLogger(__name__)
+
+# Optional: Locale für Währungsformat
+try: locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
+except locale.Error:
+    try: locale.setlocale(locale.LC_ALL, 'German_Germany.1252')
+    except locale.Error: logger.warning("Konnte deutsche Locale für Währung nicht setzen, verwende Standard.")
 
 # --- Pfade ---
 try: script_dir = os.path.dirname(os.path.abspath(__file__))
