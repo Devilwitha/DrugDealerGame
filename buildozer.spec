@@ -29,7 +29,7 @@ source.include_patterns = assets/*,data/*
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versioning (method 1)
-version = 0.3.9
+version = 0.7.9
 #version = Release.mainversion.miniGame
 
 # (str) Application versioning (method 2)
