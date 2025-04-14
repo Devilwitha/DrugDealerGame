@@ -1,4 +1,4 @@
-# game.py (Refactored using items.py)
+# game.py (Geldanzeige mit Icon-Hintergrund)
 import pygame
 import sys
 import logging
@@ -6,9 +6,15 @@ import os
 import math
 import time
 import traceback
+import locale
+
+# Optional: Locale für Währungsformat
+try: locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
+except locale.Error:
+    try: locale.setlocale(locale.LC_ALL, 'German_Germany.1252')
+    except locale.Error: logger.warning("Konnte deutsche Locale für Währung nicht setzen, verwende Standard.")
 
 # --- Logging Konfiguration ---
-# (No change needed here)
 log_format = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
 log_level = logging.DEBUG
 date_fmt = '%Y-%m-%d %H:%M:%S'
@@ -16,7 +22,6 @@ logging.basicConfig(level=log_level, format=log_format, datefmt=date_fmt)
 logger = logging.getLogger(__name__)
 
 # --- Pfade ---
-# (No change needed here, MAIN_SCRIPT_PATH still needed)
 try: script_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError: script_dir = os.path.abspath(".")
 project_root_dir = os.path.normpath(os.path.join(script_dir, "..", ".."))
@@ -29,7 +34,6 @@ SETTINGS_FILE_PATH = os.path.join(SETTINGS_DIR, "settings.json")
 MAIN_SCRIPT_PATH = os.path.join(project_root_dir, "main.py")
 
 # --- File Logging hinzufügen ---
-# (No change needed here)
 try:
     os.makedirs(log_dir, exist_ok=True); timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     log_filename = f"game_{timestamp}.log"; log_file_path = os.path.join(log_dir, log_filename)
@@ -40,7 +44,7 @@ try:
 except Exception as e_log_setup: logger.error(f"Fehler File Logging: {e_log_setup}", exc_info=True)
 
 logger.info("Spiel wird initialisiert...")
-logger.debug(f"Game Script Verzeichnis: {script_dir}") # etc... (paths logged)
+logger.debug(f"Game Script Verzeichnis: {script_dir}") # etc...
 
 # --- Eigene Module importieren ---
 try:
@@ -51,34 +55,40 @@ try:
     from inventory import Inventory, BOX_SIZE, PADDING, MAX_SLOTS
     from persistence import load_data, save_data
     import settings_utils
-    import items # NEU: Importiere das neue items Modul
+    import items
     logger.info("Eigene Module importiert.")
 except ImportError as e: logger.critical(f"Fehler Import Modul: {e}.", exc_info=True); sys.exit()
 except Exception as e: logger.critical(f"Unerwarteter Import-Fehler: {e}", exc_info=True); sys.exit()
 
 # --- Einstellungen laden ---
-# (No change needed here)
-try: current_settings = settings_utils.load_settings(SETTINGS_FILE_PATH); logger.info(f"Einstellungen geladen: {current_settings}")
-except Exception: # Simplified except
+try:
+    current_settings = settings_utils.load_settings(SETTINGS_FILE_PATH); logger.info(f"Einstellungen geladen: {current_settings}")
+except Exception:
     logger.exception("FEHLER beim Laden der Einstellungen:"); current_settings = {'music_volume': 0.5, 'sfx_volume': 0.5, 'master_volume': 0.5}; logger.warning(f"Fallback-Einstellungen: {current_settings}")
 
 # --- Konstanten ---
 TILE_SIZE = 32; FPS = 60
-WHITE = (255, 255, 255); BLACK = (0, 0, 0); GREEN = (0, 255, 0); RED = (255, 0, 0); BLUE = (0, 0, 255); MAGENTA = (255, 0, 255)
-PLACED_ITEM_SIZE = TILE_SIZE # Größe für platzierte Items (unverändert)
-INTERACTION_RADIUS = TILE_SIZE; LONG_PRESS_THRESHOLD = 1.0; GROW_TIME_SECONDS = 10 # Spielbalance Konstante bleibt hier
+WHITE = (255, 255, 255); BLACK = (0, 0, 0); GREEN = (0, 200, 0); RED = (255, 0, 0); BLUE = (0, 0, 255); MAGENTA = (255, 0, 255)
+PLACED_ITEM_SIZE = TILE_SIZE
+INTERACTION_RADIUS = TILE_SIZE; LONG_PRESS_THRESHOLD = 1.0; GROW_TIME_SECONDS = 10
 INVENTORY_SCALE_FACTOR = 2.0; SCALED_BOX_SIZE = int(BOX_SIZE * INVENTORY_SCALE_FACTOR); SCALED_PADDING = int(PADDING * INVENTORY_SCALE_FACTOR); SCALED_ICON_SIZE = (SCALED_BOX_SIZE - SCALED_PADDING * 2, SCALED_BOX_SIZE - SCALED_PADDING * 2); logger.debug(f"Berechnete SCALED_ICON_SIZE: {SCALED_ICON_SIZE}"); INVENTORY_BOTTOM_PADDING = 20
 BUTTON_DEFAULT_WIDTH_PERCENT = 0.08; BUTTON_DEFAULT_HEIGHT_PERCENT = 0.13; BUTTON_PADDING = 15; BUTTON_X = BUTTON_PADDING; BUTTON_COLOR_NORMAL = (80, 80, 80); BUTTON_BORDER_COLOR = WHITE
 FONT_SIZE_REF_H = 600.0; BASE_UI_FONT_SIZE = 28; BASE_BUTTON_FONT_SIZE = 18; BASE_INV_QTY_FONT_SIZE = 16
-BACKGROUND_FILENAME = "background.png"; BUTTON_FILENAME = "interact_button.png"
-# ICON_FILES und PLACED_ITEM_STATE_FILES sind jetzt in items.py
 
-# Speicherdateien
-INVENTORY_FILENAME="inventar.json"; INVENTORY_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, INVENTORY_FILENAME)
-PLAYER_POS_FILENAME="player_position.json"; PLAYER_POS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLAYER_POS_FILENAME)
-PLACED_ITEMS_FILENAME="placed_items.json"; PLACED_ITEMS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLACED_ITEMS_FILENAME)
+# --- Asset-Dateinamen ---
+BACKGROUND_FILENAME = "background.png"; 
+BUTTON_FILENAME = "interact_button.png"
+MONEY_ICON_FILENAME = "money_icon.png" # NEU: Dateiname für Geld-Icon
 
-# --- Asset Ladefunktion (bleibt hier) ---
+# ICON_FILES / PLACED_ITEM_STATE_FILES sind in items.py
+INVENTORY_FILENAME="inventar.json"; 
+INVENTORY_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, INVENTORY_FILENAME)
+PLAYER_POS_FILENAME="player_position.json"; 
+PLAYER_POS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLAYER_POS_FILENAME)
+PLACED_ITEMS_FILENAME="placed_items.json"; 
+PLACED_ITEMS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLACED_ITEMS_FILENAME)
+
+# --- Asset Ladefunktion ---
 def load_image_asset(filename, alpha=True, scale_to=None):
     path = os.path.join(IMAGE_FOLDER, filename)
     try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
@@ -90,44 +100,38 @@ def load_image_asset(filename, alpha=True, scale_to=None):
             except Exception as e_scale: logger.error(f"Fehler Skalieren '{filename}' zu {scale_to}: {e_scale}", exc_info=True)
     return image
 
-# --- PlacedItem Klasse ist jetzt in items.py ---
-# from items import PlacedItem # Alternative zu items.PlacedItem
-
 # --- Globale Variablen ---
-# (Deklaration unverändert)
 screen = None; clock = None; ui_font = None; button_font = None; inventory_font = None
-background_image = None; button_image_normal = None; item_icons = {}; placed_item_images = {}
-fallback_placed_image = None; player = None; camera = None; inventory = None
-all_sprites = None; npcs = None; placed_items = None
+background_image = None; button_image_normal = None; money_slot_background_img = None # NEU
+item_icons = {}; placed_item_images = {}; fallback_placed_image = None
+player = None; camera = None; inventory = None; all_sprites = None; npcs = None; placed_items = None
 CENTERED_INVENTORY_X_POS = 0; CENTERED_INVENTORY_Y_POS = 0; BUTTON_RECT = None
+player_money = 0.0
 
 # --- Speicherfunktion ---
-# (Unverändert)
 def save_game_state():
     logger.info("Speichere Spielstand...")
     try:
         if inventory: logger.info(f"Speichere Inventar..."); inventory.save_inventory()
-        else: logger.warning("Inventar nicht initialisiert, kann nicht speichern.")
+        else: logger.warning("Inventar nicht initialisiert.")
     except Exception as e: logger.error(f"Fehler Inv speichern: {e}", exc_info=True)
     try:
-        if player: logger.info(f"Speichere Spielerposition..."); player_pos_data = {'x': player.rect.x, 'y': player.rect.y}; save_data(player_pos_data, PLAYER_POS_SAVE_FILE)
-        else: logger.warning("Spieler nicht initialisiert, kann Position nicht speichern.")
-    except Exception as e: logger.error(f"Fehler Pos speichern: {e}", exc_info=True)
+        if player: logger.info(f"Speichere Spielerposition & Geld..."); player_pos_data = {'x': player.rect.x, 'y': player.rect.y, 'money': player_money}; save_data(player_pos_data, PLAYER_POS_SAVE_FILE)
+        else: logger.warning("Spieler nicht initialisiert.")
+    except Exception as e: logger.error(f"Fehler Pos/Geld speichern: {e}", exc_info=True)
     try:
         if placed_items is not None:
              logger.info(f"Speichere platzierte Items...");
              placed_items_to_save = [{'type': item.item_type, 'x': item.rect.centerx, 'y': item.rect.centery, 'state': item.state, 'timer_end': item.timer_end_timestamp} for item in placed_items]
              save_data(placed_items_to_save, PLACED_ITEMS_SAVE_FILE); logger.info(f"{len(placed_items_to_save)} Items gespeichert.")
-        else: logger.warning("Placed_items Gruppe nicht initialisiert, kann Items nicht speichern.")
+        else: logger.warning("Placed_items Gruppe nicht initialisiert.")
     except Exception as e: logger.error(f"Fehler Items speichern: {e}", exc_info=True)
-
 
 # --- Haupt-Initialisierungsblock ---
 try:
     pygame.init()
     try: pygame.mixer.init(); logger.info("Pygame Mixer initialisiert.")
     except pygame.error as e_mix: logger.error(f"Mixer Init fehlgeschlagen: {e_mix}", exc_info=True)
-    # Bildschirm Setup
     SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
     try:
         info = pygame.display.Info(); detected_w, detected_h = info.current_w, info.current_h
@@ -140,7 +144,6 @@ try:
         except Exception as e_fallback_display: logger.critical(f"Fallback-Bildschirm Fehler: {e_fallback_display}", exc_info=True); pygame.quit(); sys.exit()
     if screen is None: logger.critical("Bildschirm konnte nicht initialisiert werden."); pygame.quit(); sys.exit()
     pygame.display.set_caption("Das Spiel"); clock = pygame.time.Clock(); logger.info("Screen & Clock erstellt.")
-    # Weltgröße, Fonts, Button, Inventar-Position nach Screen-Init
     WORLD_WIDTH = SCREEN_WIDTH * 3; WORLD_HEIGHT = SCREEN_HEIGHT * 2; logger.info(f"Weltgröße: {WORLD_WIDTH}x{WORLD_HEIGHT}")
     ui_font_size = max(12, int(SCREEN_HEIGHT*(BASE_UI_FONT_SIZE/FONT_SIZE_REF_H))); button_font_size = max(10, int(SCREEN_HEIGHT*(BASE_BUTTON_FONT_SIZE/FONT_SIZE_REF_H))); inventory_font_size = max(8, int(SCREEN_HEIGHT*(BASE_INV_QTY_FONT_SIZE/FONT_SIZE_REF_H)))
     try: ui_font = pygame.font.Font(None, ui_font_size); button_font = pygame.font.Font(None, button_font_size); inventory_font = pygame.font.Font(None, inventory_font_size); logger.info(f"Fonts erstellt: UI={ui_font_size}, Btn={button_font_size}, Inv={inventory_font_size}")
@@ -148,33 +151,33 @@ try:
     BUTTON_DEFAULT_WIDTH = int(SCREEN_WIDTH*BUTTON_DEFAULT_WIDTH_PERCENT); BUTTON_DEFAULT_HEIGHT = int(SCREEN_HEIGHT*BUTTON_DEFAULT_HEIGHT_PERCENT); BUTTON_RECT = pygame.Rect(BUTTON_X, 0, BUTTON_DEFAULT_WIDTH, BUTTON_DEFAULT_HEIGHT); logger.info(f"Button Default Size: {BUTTON_DEFAULT_WIDTH}x{BUTTON_DEFAULT_HEIGHT}")
     total_inventory_width = MAX_SLOTS * SCALED_BOX_SIZE + (MAX_SLOTS - 1) * SCALED_PADDING; CENTERED_INVENTORY_X_POS = (SCREEN_WIDTH - total_inventory_width) // 2; CENTERED_INVENTORY_Y_POS = SCREEN_HEIGHT - SCALED_BOX_SIZE - INVENTORY_BOTTOM_PADDING; logger.info(f"Inventar berechnet: Breite={total_inventory_width}, Pos=({CENTERED_INVENTORY_X_POS},{CENTERED_INVENTORY_Y_POS})")
 
-    # --- Assets Laden (über items.py) --- NEU
+    # Assets Laden
     logger.info("Lade Assets über items.load_item_assets...")
-    # Beachte: PLACED_ITEM_SIZE ist TILE_SIZE
-    item_icons, placed_item_images, fallback_placed_image = items.load_item_assets(
-        IMAGE_FOLDER,
-        PLACED_ITEM_SIZE,
-        SCALED_ICON_SIZE,
-        load_image_asset # Übergebe die Ladefunktion
-    )
-    # Lade andere Bilder direkt
+    item_icons, placed_item_images, fallback_placed_image = items.load_item_assets(IMAGE_FOLDER, PLACED_ITEM_SIZE, SCALED_ICON_SIZE, load_image_asset)
     background_image = load_image_asset(BACKGROUND_FILENAME, alpha=False)
     if background_image:
         try:
             if background_image.get_size() != (SCREEN_WIDTH, SCREEN_HEIGHT): background_image = pygame.transform.smoothscale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT)); logger.info("BG skaliert.")
         except Exception as e: logger.error(f"BG Skalierung fehlgeschlagen: {e}", exc_info=True); background_image = None
     button_image_normal = load_image_asset(BUTTON_FILENAME, alpha=True)
-    # Ende Asset Laden (neu)
+    # --- Lade Geld-Icon --- NEU
+    money_slot_background_img = load_image_asset(MONEY_ICON_FILENAME, alpha=True, scale_to=(SCALED_BOX_SIZE, SCALED_BOX_SIZE))
+    if not money_slot_background_img: logger.warning(f"Konnte Geld-Icon '{MONEY_ICON_FILENAME}' nicht laden.")
 
 
     # Spielobjekte erstellen (inkl. Laden)
-    # (Logik bleibt gleich, verwendet aber ggf. geladene Assets von oben)
     player_start_x=WORLD_WIDTH//2; player_start_y=WORLD_HEIGHT//2; player_radius=TILE_SIZE//3; spawn_x,spawn_y=player_start_x,player_start_y
-    loaded_pos_data = load_data(PLAYER_POS_SAVE_FILE)
-    if isinstance(loaded_pos_data, dict) and 'x' in loaded_pos_data and 'y' in loaded_pos_data:
-        try: spawn_x=int(loaded_pos_data['x']); spawn_y=int(loaded_pos_data['y']); logger.info(f"Spieler Spawn(TL):({spawn_x},{spawn_y})")
-        except: logger.warning(f"Ungültige Pos-Daten. Standard ({spawn_x},{spawn_y})")
-    else: logger.info(f"Keine Pos-Datei. Standard ({spawn_x},{spawn_y})")
+    loaded_player_data = load_data(PLAYER_POS_SAVE_FILE)
+    player_money = 0.0 # Default Geld vor dem Laden
+    if isinstance(loaded_player_data, dict):
+        if 'x' in loaded_player_data and 'y' in loaded_player_data:
+            try: spawn_x=int(loaded_player_data['x']); spawn_y=int(loaded_player_data['y']); logger.info(f"Spieler Spawn(TL):({spawn_x},{spawn_y})")
+            except: logger.warning(f"Ungültige Pos-Daten in Savefile. Standard-Pos ({spawn_x},{spawn_y})")
+        if 'money' in loaded_player_data: # Lade Geld
+            try: player_money = float(loaded_player_data['money']); logger.info(f"Spieler Geld geladen: {player_money:.2f}")
+            except: logger.warning(f"Ungültige Money-Daten '{loaded_player_data['money']}' in Savefile. Standard-Geld ({player_money})")
+    else: logger.info(f"Keine Speicherdatei für Spieler gefunden oder ungültiges Format. Standardwerte verwendet.")
+
     player = Player(spawn_x, spawn_y, player_radius, RED)
     camera = Camera(WORLD_WIDTH, WORLD_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT); initial_cam_x = max(0, min(player.rect.centerx - SCREEN_WIDTH // 2, WORLD_WIDTH - SCREEN_WIDTH)); initial_cam_y = max(0, min(player.rect.centery - SCREEN_HEIGHT // 2, WORLD_HEIGHT - SCREEN_HEIGHT)); camera.camera_rect.topleft = (initial_cam_x, initial_cam_y); logger.info(f"Kamera ausgerichtet: {camera.camera_rect.topleft}")
     inventory = Inventory(filepath=INVENTORY_SAVE_FILE); logger.info(f"Inventar erstellt/geladen.");
@@ -189,14 +192,8 @@ try:
             if isinstance(item_data, dict):
                 try: item_type=item_data.get('type','?'); item_x=int(item_data['x']); item_y=int(item_data['y']); item_state=item_data.get('state','ohneErde'); item_timer_end=item_data.get('timer_end', None)
                 except (KeyError, ValueError, TypeError) as e: logger.warning(f"Ungültiger Eintrag in '{PLACED_ITEMS_FILENAME}': {item_data} -> {e}", exc_info=True); continue
-                images = placed_item_images.get(item_type, {}) # Verwende geladene Bilder
-                fallback_img = fallback_placed_image        # Verwende geladenen Fallback
-                # --- Verwende items.PlacedItem --- NEU
-                new_item = items.PlacedItem(
-                    item_x, item_y, item_type, images, fallback_img,
-                    GROW_TIME_SECONDS, # Übergebe Grow Time
-                    state=item_state, timer_end_timestamp=item_timer_end
-                )
+                images = placed_item_images.get(item_type, {}); fallback_img = fallback_placed_image
+                new_item = items.PlacedItem(item_x,item_y, item_type, images, fallback_img, GROW_TIME_SECONDS, state=item_state, timer_end_timestamp=item_timer_end)
                 if new_item.rect: all_sprites.add(new_item); placed_items.add(new_item); loaded_item_count += 1
                 else: logger.error(f"Konnte PlacedItem beim Laden nicht erstellen: {item_data}")
             else: logger.warning(f"Ungültiger Eintragstyp in '{PLACED_ITEMS_FILENAME}': {type(item_data)}")
@@ -216,7 +213,6 @@ try:
 
 except Exception as e: logger.critical(f"Init/Setup Fehler: {e}", exc_info=True); pygame.quit(); sys.exit()
 
-
 # --- Spiel-Zustände ---
 is_dragging = False; dragged_item_type = None; dragged_item_image = None
 interaction_active = False; interaction_start_time = 0.0; potential_interaction_item = None
@@ -230,7 +226,6 @@ while running:
         keys = pygame.key.get_pressed()
 
         # --- Interaktionsziel finden ---
-        # (Keine Änderung nötig)
         current_closest_item = None; min_dist = float('inf'); player_cx = player.rect.centerx; player_cy = player.rect.centery
         for item in placed_items:
             item_cx = item.rect.centerx; item_cy = item.rect.centery; distance = math.hypot(player_cx - item_cx, player_cy - item_cy)
@@ -246,7 +241,7 @@ while running:
             # --- Keyboard Events ---
             if not platform_utils.IS_ANDROID:
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE: # --- ESC -> Zurück zum Menü ---
+                    if event.key == pygame.K_ESCAPE: # ESC -> Zurück zum Menü
                         logger.info("ESC gedrückt -> Speichern und zurück zum Hauptmenü...")
                         save_game_state(); pygame.quit(); logger.info("Game-Pygame beendet.")
                         try:
@@ -256,10 +251,9 @@ while running:
                         except Exception as e_exec: logger.critical(f"FEHLER beim Versuch, os.execv für main.py auszuführen: {e_exec}", exc_info=True); sys.exit(1)
                     elif event.key == pygame.K_SPACE and not interaction_active and interaction_possible_now:
                         interaction_active = True; interaction_press_event_handled = True; potential_interaction_item = current_closest_item; interaction_start_time = time.time(); logger.info(f"Beginne Interaktion (SPACE) mit {potential_interaction_item.item_type}")
-                elif event.type == pygame.KEYUP: # KEYUP
+                elif event.type == pygame.KEYUP:
                     if event.key == pygame.K_SPACE and interaction_active and potential_interaction_item:
                         if time.time() - interaction_start_time < LONG_PRESS_THRESHOLD:
-                            # (Code für kurzen Druck unverändert)
                             item_to_interact = potential_interaction_item; logger.debug(f"Kurz (SPACE) -> Aktion {item_to_interact.state}")
                             required_item = None; interaction_possible_prereq = False
                             if item_to_interact.state=='ohneErde': required_item = "Sack Erde"
@@ -271,7 +265,6 @@ while running:
                         potential_interaction_item = None; interaction_start_time = 0.0; interaction_active = False
             # --- Maus Events ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # (Code für Mousedown unverändert, verwendet bereits skalierte/zentrierte Rects für Drag-Start)
                 button_clicked_this_event = False
                 if platform_utils.IS_ANDROID and BUTTON_RECT.collidepoint(mouse_pos_screen):
                     if not interaction_active and interaction_possible_now: button_clicked_this_event = True; interaction_active = True; interaction_press_event_handled = True; potential_interaction_item = current_closest_item; interaction_start_time = time.time(); logger.info(f"Beginne Interaktion (Button) mit {potential_interaction_item.item_type}")
@@ -279,17 +272,13 @@ while running:
                 elif not is_dragging and not button_clicked_this_event:
                     inv_items_list = inventory.get_item_list_for_display()
                     for i in range(MAX_SLOTS):
+                        if i == MAX_SLOTS - 1: continue # Letzten Slot für Drag ignorieren
                         slot_x = CENTERED_INVENTORY_X_POS + i * (SCALED_BOX_SIZE + SCALED_PADDING); slot_y = CENTERED_INVENTORY_Y_POS
                         slot_rect = pygame.Rect(slot_x, slot_y, SCALED_BOX_SIZE, SCALED_BOX_SIZE)
                         if slot_rect.collidepoint(mouse_pos_screen) and i < len(inv_items_list):
                             item_name, quantity = inv_items_list[i]
-                            if item_name == "Blumentopf" and quantity > 0:
-                                is_dragging=True; dragged_item_type="Blumentopf"
-                                # Drag-Image ist das platzierte Bild, NICHT das Icon
-                                dragged_item_image = placed_item_images.get("Blumentopf", {}).get('ohneErde', fallback_placed_image)
-                                logger.info(f"Starte Drag: {dragged_item_type}"); break
+                            if item_name == "Blumentopf" and quantity > 0: is_dragging=True; dragged_item_type="Blumentopf"; dragged_item_image = placed_item_images.get("Blumentopf", {}).get('ohneErde', fallback_placed_image); logger.info(f"Starte Drag: {dragged_item_type}"); break
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                 # (Code für Mouseup unverändert, Drag&Drop Platzierung verwendet items.PlacedItem)
                 if platform_utils.IS_ANDROID and interaction_active:
                     logger.debug("Interaktions-Button LOSGELASSEN (Android)")
                     if potential_interaction_item and time.time() - interaction_start_time < LONG_PRESS_THRESHOLD:
@@ -311,24 +300,16 @@ while running:
                         if temp_rect.colliderect(item.rect): can_place = False; logger.info("Platzieren blockiert."); break
                     if can_place and inventory.remove_item(dragged_item_type, 1):
                         images = placed_item_images.get(dragged_item_type, {}); fallback_img = fallback_placed_image
-                        # --- Verwende items.PlacedItem --- NEU
-                        new_item = items.PlacedItem(
-                            snapped_center_x, snapped_center_y, dragged_item_type, images, fallback_img,
-                            GROW_TIME_SECONDS, # Grow Time übergeben
-                            state='ohneErde'
-                            )
+                        new_item = items.PlacedItem(snapped_center_x, snapped_center_y, dragged_item_type, images, fallback_img, GROW_TIME_SECONDS, state='ohneErde')
                         if new_item.rect: all_sprites.add(new_item); placed_items.add(new_item); logger.info(f"'{dragged_item_type}' platziert.")
                         else: logger.error("Fehler Erstellen PlacedItem nach Drag!"); inventory.add_item(dragged_item_type, 1)
                     elif can_place: logger.warning(f"Platzieren fehlgeschlagen (Inventar?)")
                     is_dragging = False; dragged_item_type = None; dragged_item_image = None
 
-
         # --- Update ---
-        # (Keine Änderung nötig)
         player.update(keys, camera.get_current_screen_rect()); camera.update(player); npcs.update(); placed_items.update(dt)
 
-        # --- Aufheben-Logik (Langes Halten) ---
-        # (Keine Änderung nötig)
+        # --- Aufheben-Logik ---
         if interaction_active and potential_interaction_item and time.time() - interaction_start_time >= LONG_PRESS_THRESHOLD:
             logger.info(f"LANGES DRÜCKEN -> Pickup '{potential_interaction_item.item_type}'")
             item_type_to_add = potential_interaction_item.item_type
@@ -341,7 +322,6 @@ while running:
         else: screen.fill(BLACK)
         for sprite in all_sprites:
             if camera.get_current_screen_rect().colliderect(sprite.rect): screen.blit(sprite.image, camera.apply(sprite))
-        # Interaktionsradius / Fortschrittsbalken
         if interaction_active and potential_interaction_item:
             try:
                 player_screen_rect = camera.apply(player); player_screen_center = player_screen_rect.center
@@ -350,33 +330,61 @@ while running:
                     hold_duration = time.time() - interaction_start_time; progress = min(1.0, hold_duration / LONG_PRESS_THRESHOLD)
                     if progress > 0: bar_width = 50; bar_height = 5; bar_x = player_screen_center[0] - bar_width // 2; bar_y = player_screen_rect.top - bar_height - 5; pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height)); pygame.draw.rect(screen, RED, (bar_x, bar_y, int(bar_width * progress), bar_height))
             except Exception as e: logger.error(f"Zeichenfehler Interaktion: {e}", exc_info=True)
-        # UI Text
-        try:
+        try: # UI Text
             if pygame.font.get_init() and ui_font: pos_text_str = f"P({player.rect.x},{player.rect.y}) C({camera.camera_rect.x},{camera.camera_rect.y})"; pos_text_surface = ui_font.render(pos_text_str, True, WHITE); screen.blit(pos_text_surface, (10, 10))
         except Exception as e: logger.error(f"Zeichenfehler UI-Text: {e}", exc_info=True)
 
-        # --- Inventar zeichnen (Manuell, mit Text-Fallback) ---
-        # (Code unverändert)
+        # --- Inventar zeichnen (mit Geld im letzten Slot und Icon-BG) --- NEU
         try:
             items_for_display = inventory.get_item_list_for_display()
             for i in range(MAX_SLOTS):
                 slot_x = CENTERED_INVENTORY_X_POS + i * (SCALED_BOX_SIZE + SCALED_PADDING); slot_y = CENTERED_INVENTORY_Y_POS
                 slot_rect = pygame.Rect(slot_x, slot_y, SCALED_BOX_SIZE, SCALED_BOX_SIZE)
-                pygame.draw.rect(screen, (100, 100, 100, 180), slot_rect); pygame.draw.rect(screen, WHITE, slot_rect, 2)
-                if i < len(items_for_display):
+
+                # --- Spezialbehandlung für letzten Slot (Geld)---
+                if i == MAX_SLOTS - 1:
+                    # Hintergrund: Icon oder graues Rechteck
+                    if money_slot_background_img:
+                        screen.blit(money_slot_background_img, slot_rect.topleft)
+                    else:
+                        pygame.draw.rect(screen, (100, 100, 100, 180), slot_rect) # Fallback Grau
+
+                    # Rand (immer)
+                    pygame.draw.rect(screen, WHITE, slot_rect, 2)
+
+                    # Geld-Text (immer, über Hintergrund)
+                    if inventory_font:
+                        try: money_text = locale.currency(player_money, grouping=True) # Formatierung
+                        except Exception: money_text = f"{player_money:.2f}" # Simples Fallback-Format
+                        money_surface = inventory_font.render(money_text, True, GREEN) # Grüne Schrift
+                        money_rect = money_surface.get_rect(center=slot_rect.center)
+                        screen.blit(money_surface, money_rect)
+                    else: logger.warning(f"Kann Geld nicht anzeigen, inventory_font ist None.")
+
+                # --- Normale Items für andere Slots ---
+                elif i < len(items_for_display):
+                    # Hintergrund und Rand (Standard)
+                    pygame.draw.rect(screen, (100, 100, 100, 180), slot_rect)
+                    pygame.draw.rect(screen, WHITE, slot_rect, 2)
+                    # Item-Inhalt
                     item_name, quantity = items_for_display[i]; icon_surface = item_icons.get(item_name)
                     if icon_surface: icon_rect = icon_surface.get_rect(center=slot_rect.center); screen.blit(icon_surface, icon_rect)
                     else: # Text Fallback
-                        # logger.warning(f"Slot {i} ({item_name}): KEIN Icon! Zeichne Text.") # Optional
                         if inventory_font: fallback_text_surface = inventory_font.render(item_name, True, WHITE); fallback_text_rect = fallback_text_surface.get_rect(center=slot_rect.center); screen.blit(fallback_text_surface, fallback_text_rect)
                         else: logger.error(f"Slot {i} ({item_name}): Kann Text nicht zeichnen, inventory_font ist None.")
                     if quantity > 0 and inventory_font: # Menge
                         qty_surface = inventory_font.render(str(quantity), True, WHITE); qty_rect = qty_surface.get_rect(bottomright=(slot_rect.right - SCALED_PADDING // 2, slot_rect.bottom - SCALED_PADDING // 2)); screen.blit(qty_surface, qty_rect)
                     elif quantity > 0: logger.warning(f"Slot {i} ({item_name}): Menge > 0, aber inventory_font ist None.")
+                else:
+                    # Leerer Slot (nicht Geld-Slot)
+                    pygame.draw.rect(screen, (100, 100, 100, 180), slot_rect)
+                    pygame.draw.rect(screen, WHITE, slot_rect, 2)
+
+
         except Exception as e: logger.error(f"Fehler Inventar-Anzeige (manuell): {e}", exc_info=True)
 
+
         # Drag Preview & Android Button & Flip
-        # (Code unverändert)
         if is_dragging and dragged_item_image:
             world_x, world_y = camera.screen_to_world(mouse_pos_screen[0], mouse_pos_screen[1]); snapped_tl_x = (world_x // PLACED_ITEM_SIZE) * PLACED_ITEM_SIZE; snapped_tl_y = (world_y // PLACED_ITEM_SIZE) * PLACED_ITEM_SIZE
             temp_snap_rect_world = pygame.Rect(snapped_tl_x, snapped_tl_y, PLACED_ITEM_SIZE, PLACED_ITEM_SIZE); snapped_screen_rect = camera.apply_rect(temp_snap_rect_world)
