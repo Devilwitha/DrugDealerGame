@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# main.py - Kompletter, korrigierter Code
+# main.py - Kompletter, korrigierter Code MIT Button für Hauptspiel
 import pygame
 import sys
 import os
 import traceback
+import subprocess # <-- Hinzugefügt für das Starten von game.py
 
 # --- Pfad zum Skriptverzeichnis ermitteln ---
 try:
@@ -20,10 +21,12 @@ settings_dir = os.path.join(data_dir, "settings")
 settings_file_path = os.path.join(settings_dir, "settings.json")
 image_dir = os.path.join(data_dir, "bilder") # Pfad für Bilder
 background_image_path = os.path.join(image_dir, "main_menu_background.png") # Name des Hintergrundbilds (anpassen!)
+game_script_path = os.path.join(script_dir, "data", "etc", "game.py") # <-- Pfad zum Hauptspiel-Skript
 
 print(f"DEBUG: Vollständiger Pfad zur Musikdatei wird sein: {music_file_path}")
 print(f"DEBUG: Vollständiger Pfad zur Einstellungsdatei wird sein: {settings_file_path}")
 print(f"DEBUG: Vollständiger Pfad zum Hintergrundbild wird sein: {background_image_path}")
+print(f"DEBUG: Vollständiger Pfad zum Hauptspiel-Skript wird sein: {game_script_path}")
 
 
 # --- Importiere Hilfsmodule ---
@@ -48,6 +51,7 @@ current_settings = settings_utils.load_settings(settings_file_path)
 # ------------------------------------
 
 # --- Android Immersive Mode & Platform Detection --- ### WICHTIG ###
+# (Android Code bleibt unverändert)
 is_android = False # Standardmäßig nicht Android
 try: # Android Specific Code
     from jnius import autoclass, cast, PythonJavaClass, java_method
@@ -74,21 +78,21 @@ try: # Android Specific Code
         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
     )
     class SetUiVisibilityRunnablePJC(PythonJavaClass):
-            __javainterfaces__ = ['java/lang/Runnable']
-            def __init__(self, a, f):
-                super().__init__()
-                self.a = a
-                self.f = f
-            @java_method('()V')
-            def run(self):
-                try:
-                    w = self.a.getWindow()
-                    d = w.getDecorView()
-                    d.setSystemUiVisibility(self.f)
-                    w.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
-                except Exception as e:
-                    print(f"FEHLER (Runnable): {e}")
-                    traceback.print_exc()
+             __javainterfaces__ = ['java/lang/Runnable']
+             def __init__(self, a, f):
+                 super().__init__()
+                 self.a = a
+                 self.f = f
+             @java_method('()V')
+             def run(self):
+                 try:
+                     w = self.a.getWindow()
+                     d = w.getDecorView()
+                     d.setSystemUiVisibility(self.f)
+                     w.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                 except Exception as e:
+                     print(f"FEHLER (Runnable): {e}")
+                     traceback.print_exc()
     runnable = SetUiVisibilityRunnablePJC(activity, flags)
     if activity:
         activity.runOnUiThread(runnable)
@@ -214,28 +218,30 @@ Crack = 0
 liquidName = "Wasser"
 pillsName = "Tafelgan"
 
-# --- Button Definition (Hauptmenü) --- # KORRIGIERT
+# --- Button Definition (Hauptmenü) --- # NEU MIT 4 BUTTONS
 BUTTON_WIDTH_PERCENT = 0.40
-BUTTON_HEIGHT_PERCENT = 0.10
-BUTTON_SPACING_PERCENT = 0.04
+BUTTON_HEIGHT_PERCENT = 0.09 # Etwas kleiner, damit 4 passen
+BUTTON_SPACING_PERCENT = 0.03 # Etwas weniger Abstand
 FONT_SIZE_REF_H = 600.0 # Für Font-Skalierung
-BASE_FONT_SIZE = 35     # Für Font-Skalierung
+BASE_FONT_SIZE = 30     # Für Font-Skalierung, etwas kleiner
 
 button_width = int(SCREEN_WIDTH * BUTTON_WIDTH_PERCENT)
 button_height = int(SCREEN_HEIGHT * BUTTON_HEIGHT_PERCENT)
 button_spacing = int(SCREEN_HEIGHT * BUTTON_SPACING_PERCENT)
 button_x = (SCREEN_WIDTH - button_width) // 2
 
-total_buttons_height = 3 * button_height + 2 * button_spacing # Höhe für DREI Buttons
+total_buttons_height = 4 * button_height + 3 * button_spacing # Höhe für VIER Buttons
 # Zentriere die Buttons vertikal
-button1_y = (SCREEN_HEIGHT - total_buttons_height) // 2
-button2_y = button1_y + button_height + button_spacing
-button3_y = button2_y + button_height + button_spacing # Y für den Optionen Button
+button1_y = (SCREEN_HEIGHT - total_buttons_height) // 2 # Oberster Button (ZipWeed)
+button2_y = button1_y + button_height + button_spacing # CockCrack
+button3_y = button2_y + button_height + button_spacing # Optionen
+button4_y = button3_y + button_height + button_spacing # Hauptspiel
 
 # --- Button Rects erstellen ---
 button1_rect = pygame.Rect(button_x, button1_y, button_width, button_height) # ZipWeed
 button2_rect = pygame.Rect(button_x, button2_y, button_width, button_height) # CockCrack
 button3_rect = pygame.Rect(button_x, button3_y, button_width, button_height) # Optionen
+button4_rect = pygame.Rect(button_x, button4_y, button_width, button_height) # Hauptspiel
 
 # --- Schriftarten für Hauptmenü-Buttons und Status ---
 # Proportionale Schriftgröße Button
@@ -243,10 +249,12 @@ button_font_size = max(15, int(SCREEN_HEIGHT * (BASE_FONT_SIZE / FONT_SIZE_REF_H
 button_font = None
 text1_surface = None
 text2_surface = None
-text3_surface = None # Für Optionen Button
+text3_surface = None
+text4_surface = None # <-- Für Hauptspiel Button
 button1_text = "Starte ZipWeed Minispiel"
 button2_text = "Starte CockCrack Minispiel"
 button3_text = "Optionen"
+button4_text = "Starte Hauptspiel" # <-- Text für Hauptspiel Button
 
 try:
     button_font = pygame.font.SysFont("arial", button_font_size)
@@ -254,6 +262,7 @@ try:
         text1_surface = button_font.render(button1_text, True, BLACK)
         text2_surface = button_font.render(button2_text, True, BLACK)
         text3_surface = button_font.render(button3_text, True, BLACK)
+        text4_surface = button_font.render(button4_text, True, BLACK) # <-- Rendern Hauptspiel
     else:
         raise Exception("SysFont lieferte None")
 except Exception as e_font:
@@ -264,12 +273,13 @@ except Exception as e_font:
              text1_surface = button_font.render(button1_text, True, BLACK)
              text2_surface = button_font.render(button2_text, True, BLACK)
              text3_surface = button_font.render(button3_text, True, BLACK)
+             text4_surface = button_font.render(button4_text, True, BLACK) # <-- Rendern Hauptspiel
         else:
              raise Exception("Fallback Font lieferte None")
     except Exception as e_font_fallback:
         print(f"FEHLER: Konnte auch Fallback-Button-Schriftart nicht laden: {e_font_fallback}")
         # Setze Surfaces auf None, damit Blit übersprungen wird
-        text1_surface = text2_surface = text3_surface = None
+        text1_surface = text2_surface = text3_surface = text4_surface = None
 
 # Schriftart und Position für Statusanzeige (Inventar)
 STATUS_FONT_SIZE_REF_H = 600.0
@@ -302,28 +312,47 @@ else:
 
 clock = pygame.time.Clock()
 
-# --- Musik laden und abspielen ---
-music_playing = False
-if mixer_initialized:
-    print(f"DEBUG: Prüfe Existenz von: {music_file_path}")
-    if os.path.exists(music_file_path):
-        try:
-            pygame.mixer.music.load(music_file_path)
-            print(f"INFO: Musikdatei '{music_file_path}' geladen.")
-            # Lautstärke wurde bereits vorher gesetzt!
-            pygame.mixer.music.play(loops=-1)
-            print("INFO: Musikwiedergabe gestartet (Looping).")
-            music_playing = True
-        except pygame.error as e_load_music:
-            print(f"FEHLER: Musikdatei '{music_file_path}' konnte nicht geladen oder abgespielt werden: {e_load_music}")
+# --- Musik Helper Funktion ---
+def play_menu_music():
+    global music_playing
+    if mixer_initialized:
+        print(f"DEBUG: Prüfe Existenz von: {music_file_path}")
+        if os.path.exists(music_file_path):
+            try:
+                pygame.mixer.music.load(music_file_path)
+                print(f"INFO: Musikdatei '{music_file_path}' geladen.")
+                # Lautstärke anwenden (falls geändert)
+                pygame.mixer.music.set_volume(current_settings.get("music_volume", 0.5))
+                pygame.mixer.music.play(loops=-1)
+                print("INFO: Musikwiedergabe gestartet (Looping).")
+                music_playing = True
+            except pygame.error as e_load_music:
+                print(f"FEHLER: Musikdatei '{music_file_path}' konnte nicht geladen oder abgespielt werden: {e_load_music}")
+                music_playing = False
+        else:
+            print(f"FEHLER: Musikdatei nicht gefunden unter: '{music_file_path}'")
+            music_playing = False
     else:
-        print(f"FEHLER: Musikdatei nicht gefunden unter: '{music_file_path}'")
-else:
-    print("INFO: Mixer wurde nicht initialisiert, keine Musikwiedergabe.")
+        print("INFO: Mixer wurde nicht initialisiert, keine Musikwiedergabe.")
+        music_playing = False
+
+def stop_menu_music():
+    global music_playing
+    if mixer_initialized and music_playing:
+        try:
+            pygame.mixer.music.stop()
+            print("INFO: Musik gestoppt.")
+            music_playing = False
+        except pygame.error as e_stop_music:
+            print(f"WARNUNG: Fehler beim Stoppen der Musik: {e_stop_music}")
+
+# --- Initiale Musik starten ---
+music_playing = False # Wird in play_menu_music gesetzt
+play_menu_music()
 # --- Ende Musik Laden ---
 
 # --- Spielzustand-Variable ---
-current_screen_state = "main_menu" # Mögliche Zustände: "main_menu", "zipweed_game", "cockcrack_game", "calling_options"
+current_screen_state = "main_menu" # Mögliche Zustände: "main_menu", "zipweed_game", "cockcrack_game", "calling_options", "main_game"
 
 # --- Hauptschleife ---
 running = True
@@ -364,7 +393,7 @@ while running:
                     elif button3_rect.collidepoint(mouse_pos):
                         print("INFO: Öffne Optionen...")
                         previous_state = current_screen_state
-                        current_screen_state = "calling_options"
+                        current_screen_state = "calling_options" # Zwischenzustand
                         try:
                             returned_settings = options_menu_module.run_options_menu(
                                 screen,
@@ -376,20 +405,69 @@ while running:
                                 print("INFO: Spiel wird nach Optionsmenü-Quit beendet.")
                             else:
                                 current_settings = returned_settings
+                                # Wende Lautstärke direkt an, falls geändert
+                                if mixer_initialized:
+                                    try:
+                                        pygame.mixer.music.set_volume(current_settings["music_volume"])
+                                        print(f"INFO: Musiklautstärke nach Optionen auf {current_settings['music_volume']:.2f} gesetzt.")
+                                    except pygame.error as e_set_vol_opt:
+                                        print(f"WARNUNG: Konnte Musiklautstärke nach Optionen nicht setzen: {e_set_vol_opt}")
                                 print("INFO: Einstellungen nach Optionsmenü aktualisiert.")
-                            current_screen_state = previous_state
+                            current_screen_state = previous_state # Zurück zum Hauptmenü
                         except Exception as e_opt_run:
                             print(f"FEHLER beim Ausführen des Optionsmenüs: {e_opt_run}")
                             traceback.print_exc()
                             current_screen_state = previous_state # Im Fehlerfall zurück
 
+                    # Button 4: Hauptspiel (NEU)
+                    elif button4_rect.collidepoint(mouse_pos):
+                        print(f"INFO: Versuche Hauptspiel zu starten: {game_script_path}")
+                        if os.path.exists(game_script_path):
+                            stop_menu_music() # Menümusik stoppen
+                            print("INFO: Menümusik gestoppt. Starte Hauptspiel...")
+                            try:
+                                # Starte game.py als separaten Prozess
+                                result = subprocess.run([sys.executable, game_script_path], check=True, capture_output=True, text=True)
+                                print(f"INFO: Hauptspiel beendet. Exit Code: {result.returncode}")
+                                # Optional: Output des Spiels anzeigen
+                                # print("STDOUT:", result.stdout)
+                                # print("STDERR:", result.stderr)
+
+                            except FileNotFoundError:
+                                print(f"FEHLER: Python Interpreter '{sys.executable}' oder Spiel-Skript '{game_script_path}' nicht gefunden.")
+                            except subprocess.CalledProcessError as e:
+                                print(f"FEHLER: Hauptspiel-Skript ist mit Fehlern beendet. Exit Code: {e.returncode}")
+                                print("STDERR vom Spiel:", e.stderr)
+                                print("STDOUT vom Spiel:", e.stdout)
+                            except Exception as e_subproc:
+                                print(f"FEHLER beim Ausführen des Hauptspiels via Subprocess: {e_subproc}")
+                                traceback.print_exc()
+                            finally:
+                                # Nach Beendigung des Spiels (oder bei Fehler)
+                                print("INFO: Hauptspiel beendet oder Fehler. Starte Menümusik neu...")
+                                # Mixer neu initialisieren könnte nötig sein, falls game.py ihn beendet hat
+                                try:
+                                     pygame.mixer.quit() # Sicherstellen, dass alter Zustand weg ist
+                                     pygame.mixer.init()
+                                     mixer_initialized = True
+                                except pygame.error as e_reinit:
+                                     print(f"WARNUNG: Mixer Re-Initialisierung fehlgeschlagen: {e_reinit}")
+                                     mixer_initialized = False
+                                # Musik wieder starten
+                                play_menu_music()
+                                # Bildschirm neu zeichnen erzwingen (könnte durch Spiel verändert worden sein)
+                                pygame.display.flip() # Sicherstellen, dass das Menü wieder da ist
+                        else:
+                            print(f"FEHLER: Hauptspiel-Skript nicht gefunden unter: {game_script_path}")
+
     # --- Zeichnen (abhängig vom Zustand) ---
 
-    # Hintergrund zeichnen
-    if background_image:
-        screen.blit(background_image, (0, 0))
-    else:
-        screen.fill(WHITE) # Fallback
+    # Hintergrund zeichnen (immer, außer wenn ein Spiel läuft)
+    if current_screen_state == "main_menu":
+        if background_image:
+            screen.blit(background_image, (0, 0))
+        else:
+            screen.fill(WHITE) # Fallback
 
     # === HAUPTMENÜ ZEICHNEN ===
     if current_screen_state == "main_menu":
@@ -416,6 +494,14 @@ while running:
         if text3_surface and button_font:
             text3_rect = text3_surface.get_rect(center=button3_rect.center)
             screen.blit(text3_surface, text3_rect.topleft)
+
+        # Button 4 (Hauptspiel) (NEU)
+        button4_color = GRAY if not button4_rect.collidepoint(mouse_pos) else DARK_GRAY
+        pygame.draw.rect(screen, button4_color, button4_rect)
+        pygame.draw.rect(screen, BLACK, button4_rect, 3)
+        if text4_surface and button_font:
+            text4_rect = text4_surface.get_rect(center=button4_rect.center)
+            screen.blit(text4_surface, text4_rect.topleft)
 
         # Statusanzeige (Inventar)
         if status_font:
@@ -446,6 +532,7 @@ while running:
 
     # === MINISPIELE AUSFÜHREN / ZEICHNEN ===
     elif current_screen_state == "zipweed_game":
+        stop_menu_music() # Stoppe Menümusik für Minispiel
         try:
             result_tuple = zipWeedGame.run_zip_weed_game(screen, weed, grips, sorte, current_settings)
             if result_tuple is not None:
@@ -461,20 +548,25 @@ while running:
                  print("WARNUNG: ZipWeed hat kein Ergebnis (None) zurückgegeben!")
             print("INFO: Zurück im Hauptmenü nach ZipWeed.")
             current_screen_state = "main_menu"
+            play_menu_music() # Starte Menümusik wieder
         except AttributeError as e_attr_zw:
             print(f"FEHLER (AttributeError ZipWeed): {e_attr_zw} - Funktion 'run_zip_weed_game' nicht gefunden?")
             traceback.print_exc()
             current_screen_state = "main_menu"
+            play_menu_music()
         except TypeError as e_type_zw:
              print(f"FEHLER (TypeError ZipWeed): {e_type_zw} - Falsche Argumente übergeben?")
              traceback.print_exc()
              current_screen_state = "main_menu"
+             play_menu_music()
         except Exception as e_game_zw:
             print(f"FEHLER während ZipWeed Ausführung: {e_game_zw}")
             traceback.print_exc()
             current_screen_state = "main_menu"
+            play_menu_music()
 
     elif current_screen_state == "cockcrack_game":
+        stop_menu_music() # Stoppe Menümusik für Minispiel
         try:
             function_to_call_cc = cockCrackGame.run_cock_crack_game
             if callable(function_to_call_cc):
@@ -492,35 +584,36 @@ while running:
                     print("WARNUNG: CockCrack hat kein Ergebnis (None) zurückgegeben!")
                 print("INFO: Zurück im Hauptmenü nach CockCrack.")
                 current_screen_state = "main_menu"
+                play_menu_music() # Starte Menümusik wieder
             else:
                 print(f"FEHLER: 'run_cock_crack_game' ist nicht aufrufbar!")
                 current_screen_state = "main_menu"
+                play_menu_music()
         except AttributeError as e_attr_cc:
             print(f"FEHLER (AttributeError CockCrack): {e_attr_cc} - Funktion nicht gefunden?")
             traceback.print_exc()
             current_screen_state = "main_menu"
+            play_menu_music()
         except TypeError as e_type_cc:
             print(f"FEHLER (TypeError CockCrack): {e_type_cc} - Falsche Argumente?")
             traceback.print_exc()
             current_screen_state = "main_menu"
+            play_menu_music()
         except Exception as e_game_cc:
             print(f"FEHLER während CockCrack Ausführung: {e_game_cc}")
             traceback.print_exc()
             current_screen_state = "main_menu"
+            play_menu_music()
 
-    # --- Bildschirm aktualisieren ---
-    pygame.display.flip()
+    # --- Bildschirm aktualisieren (nur wenn nicht gerade ein Subprozess läuft) ---
+    if current_screen_state != "main_game": # Verhindert Flackern, während Spiel läuft
+         pygame.display.flip()
 
     # --- Framerate begrenzen ---
     clock.tick(60)
 
 # --- Aufräumen nach der Hauptschleife ---
-if mixer_initialized and music_playing:
-    try:
-        pygame.mixer.music.stop()
-        print("INFO: Musik gestoppt.")
-    except pygame.error as e_stop_music:
-        print(f"WARNUNG: Fehler beim Stoppen der Musik: {e_stop_music}")
+stop_menu_music() # Stoppe Musik endgültig
 
 print("INFO: Hauptmenü wird beendet. Pygame wird heruntergefahren.")
 pygame.quit()

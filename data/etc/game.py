@@ -1,4 +1,4 @@
-# game.py (Fix für BUTTON_DEFAULT_WIDTH NameError)
+# game.py (Fix für BUTTON_DEFAULT_WIDTH NameError - ERNEUT)
 import pygame
 import sys
 import logging
@@ -17,11 +17,11 @@ logger.info("Spiel wird initialisiert...")
 
 # --- Eigene Module importieren ---
 try:
-    import platform_utils # Nutzt jetzt dieses Modul für Android-Check
+    import platform_utils # Für Android-Check & Immersive Mode
     from player import Player
     from npc import NPC
     from camera import Camera
-    from inventory import Inventory, BOX_SIZE, PADDING, MAX_SLOTS
+    from inventory import Inventory, BOX_SIZE, PADDING, MAX_SLOTS # BOX_SIZE etc. importieren
     from persistence import load_data, save_data
     logger.info("Eigene Module importiert.")
 except ImportError as e: logger.critical(f"Fehler Import Modul: {e}."); sys.exit()
@@ -31,8 +31,13 @@ except Exception as e: logger.critical(f"Unerwarteter Import-Fehler: {e}"); sys.
 SCREEN_WIDTH = 800; SCREEN_HEIGHT = 600; TILE_SIZE = 32; FPS = 60
 WORLD_WIDTH = SCREEN_WIDTH * 3; WORLD_HEIGHT = SCREEN_HEIGHT * 2
 WHITE = (255, 255, 255); BLACK = (0, 0, 0); GREEN = (0, 255, 0); RED = (255, 0, 0); BLUE = (0, 0, 255)
-PLACED_ITEM_COLOR = GREEN
-PLACED_ITEM_SIZE = TILE_SIZE
+MAGENTA = (255, 0, 255) # Fallback-Farbe für fehlende Bilder
+
+# Item-spezifische Konstanten
+# PLACED_ITEM_COLOR = GREEN # Nicht mehr primär genutzt
+PLACED_ITEM_SIZE = TILE_SIZE # Definiert auch das Grid für Platzierung
+ICON_SIZE = (BOX_SIZE - PADDING * 2, BOX_SIZE - PADDING * 2) # Zielgröße für Icons
+
 INTERACTION_RADIUS = TILE_SIZE
 LONG_PRESS_THRESHOLD = 1.0 # Sekunden Schwelle für Aufheben
 GROW_TIME_SECONDS = 10 # Zum Testen verkürzt! Original: 5 * 60
@@ -41,47 +46,77 @@ GROW_TIME_SECONDS = 10 # Zum Testen verkürzt! Original: 5 * 60
 INVENTORY_BOTTOM_PADDING = 20; INVENTORY_LEFT_PADDING = 20
 
 # Interaktions-Button
-BUTTON_DEFAULT_WIDTH = 60  # KORREKTUR: Fehlende Konstante hinzugefügt
-BUTTON_DEFAULT_HEIGHT = 60 # KORREKTUR: Fehlende Konstante hinzugefügt
+BUTTON_DEFAULT_WIDTH = 60   # <<--- HIER IST DIE KORREKTUR / FEHLENDE ZEILE
+BUTTON_DEFAULT_HEIGHT = 60  # <<--- HIER IST DIE KORREKTUR / FEHLENDE ZEILE
 BUTTON_PADDING = 15
 BUTTON_X = BUTTON_PADDING
-# Y-Position und finales BUTTON_RECT werden später berechnet/angepasst
-BUTTON_RECT = pygame.Rect(BUTTON_X, 0, BUTTON_DEFAULT_WIDTH, BUTTON_DEFAULT_HEIGHT) # Nutzt jetzt Konstanten
+# Y-Position und finales BUTTON_RECT werden später gesetzt
+BUTTON_RECT = pygame.Rect(BUTTON_X, 0, BUTTON_DEFAULT_WIDTH, BUTTON_DEFAULT_HEIGHT)
 BUTTON_COLOR_NORMAL = (80, 80, 80); BUTTON_BORDER_COLOR = WHITE
 
 # --- Dateipfade & Asset-Namen ---
 try: script_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError: script_dir = os.path.abspath("."); logger.warning(f"__file__ nicht verfügbar, nutze: {script_dir}")
-# Gehe eine Ebene höher von 'data/etc' zu 'data'
-data_dir = os.path.normpath(os.path.join(script_dir, ".."))
-logger.info(f"'data' Ordner angenommen als: {data_dir}")
-IMAGE_FOLDER = os.path.join(data_dir, "bilder"); SOUND_FOLDER = os.path.join(data_dir, "sounds")
-SAVE_DATA_DIR_ABS = os.path.join(data_dir, "savedata")
-BACKGROUND_FILENAME = "background.png" # PLATZHALTER
-BUTTON_FILENAME = "interact_button.png"   # PLATZHALTER
+data_dir = os.path.normpath(os.path.join(script_dir, "..")) # Geht von data/etc zu data
+IMAGE_FOLDER = os.path.join(data_dir, "bilder"); SAVE_DATA_DIR_ABS = os.path.join(data_dir, "savedata")
+logger.info(f"Bild-Ordner: {IMAGE_FOLDER}"); logger.info(f"Speicher-Ordner: {SAVE_DATA_DIR_ABS}")
+
+# Asset-Dateinamen (PLATZHALTER - BITTE ANPASSEN!)
+BACKGROUND_FILENAME = "background.png"
+BUTTON_FILENAME = "interact_button.png"
+ICON_FILES = {
+    "Blumentopf":"blumentopf_icon.png", 
+    "Sack Erde":"sack_erde_icon.png", 
+    "Weed Seeds":"weed_seeds_icon.png"
+    }
+PLACED_ITEM_STATE_FILES = {
+    "Blumentopf": { 
+        'ohneErde': "blumentopf_ohneErde.png", 
+        'ohneSeed': "blumentopf_ohneSeed.png", 
+        'giessen': "blumentopf_giessen.png", 
+        'growing': "blumentopf_growing.png", 
+        'readyToEarn': "blumentopf_ready.png" 
+        }
+}
+# Speicherdateien
 INVENTORY_FILENAME="inventar.json"; INVENTORY_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, INVENTORY_FILENAME)
 PLAYER_POS_FILENAME="player_position.json"; PLAYER_POS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLAYER_POS_FILENAME)
 PLACED_ITEMS_FILENAME="placed_items.json"; PLACED_ITEMS_SAVE_FILE=os.path.join(SAVE_DATA_DIR_ABS, PLACED_ITEMS_FILENAME)
-logger.info(f"Bild-Ordner: {IMAGE_FOLDER}"); logger.info(f"Speicher-Ordner: {SAVE_DATA_DIR_ABS}")
-# ... (Logging Speicherpfade) ...
 
 # --- Asset Ladefunktion ---
-def load_image_asset(filename, alpha=True):
+def load_image_asset(filename, alpha=True, scale_to=None):
+    """Lädt ein Bild aus dem IMAGE_FOLDER und skaliert es optional."""
     path = os.path.join(IMAGE_FOLDER, filename)
-    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert(); logger.info(f"Bild '{filename}' geladen."); return image
-    except Exception as e: logger.error(f"Fehler Laden Bild '{path}': {e}"); return None
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+    except Exception as e_load: logger.error(f"Fehler Laden Bild '{path}': {e_load}"); return None # Früh raus bei Ladefehler
+    if scale_to:
+        try: image = pygame.transform.smoothscale(image, scale_to)
+        except Exception as e_scale: logger.error(f"Fehler Skalieren '{filename}' zu {scale_to}: {e_scale}") # Logge Fehler, aber gebe Original zurück
+    # logger.info(f"Bild '{filename}' verarbeitet.") # Weniger Logging
+    return image
 
 # --- PlacedItem Klasse ---
-class PlacedItem(pygame.sprite.Sprite): # Definition bleibt gleich
+class PlacedItem(pygame.sprite.Sprite):
     STATES = ['ohneErde', 'ohneSeed', 'giessen', 'growing', 'readyToEarn']
-    def __init__(self, world_x, world_y, size, color, item_type="Blumentopf", state='ohneErde', timer_end_timestamp=None):
+    def __init__(self, world_x, world_y, item_type, images_for_states, fallback_image, state='ohneErde', timer_end_timestamp=None):
         super().__init__()
-        self.item_type = item_type; self.size = size; self.base_color = color; self.state = state if state in self.STATES else 'ohneErde'
+        self.item_type = item_type
+        self.images_for_states = images_for_states
+        self.fallback_image = fallback_image if fallback_image else pygame.Surface((TILE_SIZE, TILE_SIZE)) # Sicherstellen, dass Fallback existiert
+        if not fallback_image: self.fallback_image.fill(MAGENTA)
+        self.state = state if state in self.STATES else 'ohneErde'
         try: self.timer_end_timestamp = float(timer_end_timestamp) if timer_end_timestamp else None
         except: self.timer_end_timestamp = None; logger.warning(f"Ungültiger Timer-TS '{timer_end_timestamp}'")
-        self.image = pygame.Surface((size, size)); self.update_appearance()
-        self.rect = self.image.get_rect(center=(world_x, world_y))
-    def update_appearance(self): state_colors = {'ohneErde':(139,69,19),'ohneSeed':(160,82,45),'giessen':(100,149,237),'growing':(34,139,34),'readyToEarn':(0,255,0)}; color = state_colors.get(self.state, self.base_color); self.image.fill(color)
+        self.image = None; self.rect = None
+        self.update_appearance() # Setzt initiales Bild und Rect
+        if self.rect: self.rect.center = (world_x, world_y) # Position setzen
+        else: logger.error("Konnte Rect für PlacedItem nicht initial setzen!"); self.kill()
+    def update_appearance(self):
+        center = self.rect.center if hasattr(self, 'rect') and self.rect else None
+        self.image = self.images_for_states.get(self.state, self.fallback_image)
+        if self.image: self.rect = self.image.get_rect()
+        else: logger.error(f"Kein Bild für State '{self.state}' oder Fallback!"); self.image = self.fallback_image; self.rect = self.image.get_rect()
+        if center: self.rect.center = center # Alte Mitte wiederherstellen
     def update(self, dt):
         if self.state == 'growing' and self.timer_end_timestamp is not None:
             if time.time() >= self.timer_end_timestamp: logger.info(f"Item '{self.item_type}' fertig!"); self.state = 'readyToEarn'; self.timer_end_timestamp = None; self.update_appearance()
@@ -98,22 +133,32 @@ class PlacedItem(pygame.sprite.Sprite): # Definition bleibt gleich
 
 # --- Pygame Initialisierung & Bildschirm ---
 try:
-    pygame.init()
-    # Versuche Immersive Mode NUR wenn Android erkannt wurde
+    pygame.init();
     if platform_utils.IS_ANDROID: platform_utils.set_android_immersive_mode()
     logger.info("Pygame initialisiert.")
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("NameError Fix")
-    clock = pygame.time.Clock()
-    logger.info("Screen & Clock erstellt.")
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)); pygame.display.set_caption("NameError Fix Applied")
+    clock = pygame.time.Clock(); logger.info("Screen & Clock erstellt.")
 except Exception as e: logger.critical(f"Init/Screen Fehler: {e}"); pygame.quit(); sys.exit()
 
 # --- Assets Laden ---
+logger.info("Lade Assets...")
 background_image = load_image_asset(BACKGROUND_FILENAME, alpha=False)
 if background_image and background_image.get_size() != (SCREEN_WIDTH, SCREEN_HEIGHT):
     try: background_image = pygame.transform.smoothscale(background_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
     except Exception as e: logger.error(f"BG Skalierung fehlgeschlagen: {e}"); background_image = None
 button_image_normal = load_image_asset(BUTTON_FILENAME, alpha=True)
+# Lade Inventar-Icons
+item_icons = {name: load_image_asset(filename, alpha=True, scale_to=ICON_SIZE) for name, filename in ICON_FILES.items()}
+item_icons = {k: v for k, v in item_icons.items() if v is not None} # Entferne fehlgeschlagene Ladevorgänge
+# Lade platzierte Item Bilder
+placed_item_images = {}
+fallback_placed_image = pygame.Surface((PLACED_ITEM_SIZE, PLACED_ITEM_SIZE)); fallback_placed_image.fill(MAGENTA)
+for item_type, state_files in PLACED_ITEM_STATE_FILES.items():
+    placed_item_images[item_type] = {}
+    for state_name, filename in state_files.items():
+        img = load_image_asset(filename, alpha=True, scale_to=(PLACED_ITEM_SIZE, PLACED_ITEM_SIZE))
+        if img: placed_item_images[item_type][state_name] = img
+        else: logger.warning(f"Fehlendes Zustandsbild für {item_type} -> {state_name}")
 
 # --- Spielobjekte erstellen ---
 try:
@@ -141,25 +186,21 @@ try:
     # Sprite-Gruppen
     all_sprites = pygame.sprite.Group(); npcs = pygame.sprite.Group(); placed_items = pygame.sprite.Group()
 
-    # Platzierte Items laden (mit State und Timer)
-    # ... (Ladelogik bleibt gleich) ...
+    # Platzierte Items laden
     logger.debug(f"Lade platzierte Items...")
     loaded_items_list = load_data(PLACED_ITEMS_SAVE_FILE, default_data=[])
     loaded_item_count = 0
-    if isinstance(loaded_items_list, list):
+    if isinstance(loaded_items_list, list): # Ladelogik angepasst für Bilder
         for item_data in loaded_items_list:
             if isinstance(item_data, dict):
                 try: item_type=item_data.get('type','?'); item_x=int(item_data['x']); item_y=int(item_data['y']); item_state=item_data.get('state','ohneErde'); item_timer_end=item_data.get('timer_end', None)
                 except (KeyError, ValueError, TypeError) as e: logger.warning(f"Ungültiger Eintrag in '{PLACED_ITEMS_SAVE_FILE}': {item_data} -> {e}"); continue
-                if item_type == "Blumentopf":
-                    item_color=PLACED_ITEM_COLOR; item_size=PLACED_ITEM_SIZE # TODO: Bild
-                    new_item = PlacedItem(item_x,item_y,item_size,item_color,item_type,state=item_state,timer_end_timestamp=item_timer_end)
-                    all_sprites.add(new_item); placed_items.add(new_item); loaded_item_count += 1
-                else: logger.warning(f"Unbekannter Typ '{item_type}' geladen.")
+                images = placed_item_images.get(item_type, {}) # Hole Bilder für diesen Typ
+                new_item = PlacedItem(item_x,item_y, item_type, images, fallback_placed_image, state=item_state, timer_end_timestamp=item_timer_end) # Übergebe Bilder
+                if new_item.rect: all_sprites.add(new_item); placed_items.add(new_item); loaded_item_count += 1
             else: logger.warning(f"Ungültiger Eintragstyp in '{PLACED_ITEMS_SAVE_FILE}': {type(item_data)}")
         logger.info(f"{loaded_item_count} platzierte Items geladen.")
     else: logger.warning(f"'{PLACED_ITEMS_SAVE_FILE}' enthielt keine Liste.")
-
 
     # NPCs erstellen und hinzufügen
     npc_radius=TILE_SIZE//3; npc1=NPC(TILE_SIZE*10,TILE_SIZE*8,npc_radius,BLUE); npc2=NPC(WORLD_WIDTH-TILE_SIZE*10,TILE_SIZE*15,npc_radius,GREEN) # TODO: Bilder
@@ -189,12 +230,6 @@ interaction_active = False; interaction_start_time = 0.0; potential_interaction_
 # --- Spiel-Loop ---
 running = True; logger.info("Spiel-Loop startet.")
 while running:
-    # (Rest des Spiel-Loops bleibt unverändert zur letzten Version)
-    # ... (dt, mouse_pos, keys) ...
-    # ... (Finde potenzielles Interaktionsobjekt) ...
-    # ... (Event Handling mit platform_utils.IS_ANDROID checks) ...
-    # ... (Update Logik mit interaction_active check) ...
-    # ... (Draw Logik mit platform_utils.IS_ANDROID check für Button-Zeichnung) ...
     # ------ START KOPIERTER TEIL (Rest des Loops) ------
     dt = clock.tick(FPS) / 1000.0
     mouse_pos_screen = pygame.mouse.get_pos()
@@ -232,7 +267,7 @@ while running:
                         hold_duration = time.time() - interaction_start_time
                         if hold_duration < LONG_PRESS_THRESHOLD: # Kurzes Drücken
                             item_to_interact = potential_interaction_item; logger.debug(f"Kurz (SPACE) -> Versuch Interaktion mit State '{item_to_interact.state}'")
-                            interaction_possible_prereq = False
+                            interaction_possible_prereq = False # Prüfe Voraussetzungen
                             if item_to_interact.state=='ohneErde':
                                 if inventory.has_item("Sack Erde", 1):
                                     if inventory.remove_item("Sack Erde", 1): interaction_possible_prereq=True; logger.info("Sack Erde verbraucht.")
@@ -244,7 +279,7 @@ while running:
                                     else: logger.error("Fehler: Seeds entfernen")
                                 else: logger.info("Fehlt: 'Weed Seeds'.")
                             elif item_to_interact.state in ['giessen', 'readyToEarn', 'growing']: interaction_possible_prereq = True
-                            if interaction_possible_prereq: item_to_interact.interact()
+                            if interaction_possible_prereq: item_to_interact.interact() # Führe Aktion im Item aus
                         # else: Langes Drücken wird im Update behandelt
                     potential_interaction_item = None; interaction_start_time = 0.0; interaction_active = False # Immer Reset
 
@@ -268,7 +303,9 @@ while running:
                              if i<len(inv_items_list):
                                  item_name, quantity = inv_items_list[i]
                                  if item_name == "Blumentopf" and quantity > 0:
-                                     is_dragging=True; dragged_item_type="Blumentopf"; dragged_item_image=pygame.Surface((PLACED_ITEM_SIZE, PLACED_ITEM_SIZE)); dragged_item_image.fill(PLACED_ITEM_COLOR)
+                                     is_dragging=True; dragged_item_type="Blumentopf"
+                                     # Nutze das Start-Zustandsbild für Drag-Preview
+                                     dragged_item_image = placed_item_images.get("Blumentopf", {}).get('ohneErde', fallback_placed_image)
                                      logger.info(f"Starte Drag: {dragged_item_type}"); break
 
         if event.type == pygame.MOUSEBUTTONUP:
@@ -277,39 +314,41 @@ while running:
                 if platform_utils.IS_ANDROID and interaction_active:
                     logger.debug("Interaktions-Button LOSGELASSEN (Android)")
                     if potential_interaction_item:
-                         hold_duration = time.time() - interaction_start_time
-                         if hold_duration < LONG_PRESS_THRESHOLD: # Kurzes Drücken
-                             item_to_interact = potential_interaction_item; logger.debug(f"Kurz (Button) -> Versuch Interaktion mit State '{item_to_interact.state}'")
-                             interaction_possible_prereq = False # Prüfe Voraussetzungen
-                             if item_to_interact.state=='ohneErde':
-                                 if inventory.has_item("Sack Erde", 1):
-                                     if inventory.remove_item("Sack Erde", 1): interaction_possible_prereq=True; logger.info("Sack Erde verbraucht.")
-                                     else: logger.error("Fehler: Erde entfernen")
-                                 else: logger.info("Fehlt: 'Sack Erde'.")
-                             elif item_to_interact.state=='ohneSeed':
-                                 if inventory.has_item("Weed Seeds", 1):
-                                     if inventory.remove_item("Weed Seeds", 1): interaction_possible_prereq=True; logger.info("Weed Seeds verbraucht.")
-                                     else: logger.error("Fehler: Seeds entfernen")
-                                 else: logger.info("Fehlt: 'Weed Seeds'.")
-                             elif item_to_interact.state in ['giessen', 'readyToEarn', 'growing']: interaction_possible_prereq = True
-                             if interaction_possible_prereq: item_to_interact.interact() # Führe Aktion im Item aus
-                         # else: Langes Drücken wird im Update behandelt
+                        hold_duration = time.time() - interaction_start_time
+                        if hold_duration < LONG_PRESS_THRESHOLD: # Kurzes Drücken
+                            item_to_interact = potential_interaction_item; logger.debug(f"Kurz (Button) -> Versuch Interaktion mit State '{item_to_interact.state}'")
+                            interaction_possible_prereq = False # Prüfe Voraussetzungen
+                            if item_to_interact.state=='ohneErde':
+                                if inventory.has_item("Sack Erde", 1):
+                                    if inventory.remove_item("Sack Erde", 1): interaction_possible_prereq=True; logger.info("Sack Erde verbraucht.")
+                                    else: logger.error("Fehler: Erde entfernen")
+                                else: logger.info("Fehlt: 'Sack Erde'.")
+                            elif item_to_interact.state=='ohneSeed':
+                                if inventory.has_item("Weed Seeds", 1):
+                                    if inventory.remove_item("Weed Seeds", 1): interaction_possible_prereq=True; logger.info("Weed Seeds verbraucht.")
+                                    else: logger.error("Fehler: Seeds entfernen")
+                                else: logger.info("Fehlt: 'Weed Seeds'.")
+                            elif item_to_interact.state in ['giessen', 'readyToEarn', 'growing']: interaction_possible_prereq = True
+                            if interaction_possible_prereq: item_to_interact.interact() # Führe Aktion im Item aus
+                        # else: Langes Drücken wird im Update behandelt
                     potential_interaction_item = None; interaction_start_time = 0.0; interaction_active = False # Immer Reset
 
                 # 2. Drag & Drop Ende?
                 if is_dragging:
-                     world_x,world_y=camera.screen_to_world(mouse_pos_screen[0],mouse_pos_screen[1])
-                     snapped_tl_x=(world_x//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE; snapped_tl_y=(world_y//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE
-                     snapped_center_x=snapped_tl_x+PLACED_ITEM_SIZE/2; snapped_center_y=snapped_tl_y+PLACED_ITEM_SIZE/2
-                     can_place=True; temp_rect=pygame.Rect(0,0,PLACED_ITEM_SIZE,PLACED_ITEM_SIZE); temp_rect.center=(snapped_center_x,snapped_center_y)
-                     for item in placed_items:
-                         if temp_rect.colliderect(item.rect): can_place=False; logger.info(f"Platzieren blockiert."); break
-                     if can_place:
-                         if inventory.remove_item(dragged_item_type, 1):
-                             new_item = PlacedItem(snapped_center_x, snapped_center_y, PLACED_ITEM_SIZE, PLACED_ITEM_COLOR, dragged_item_type, state='ohneErde')
-                             all_sprites.add(new_item); placed_items.add(new_item); logger.info(f"'{dragged_item_type}' platziert.")
-                         else: logger.warning(f"Platzieren fehlgeschlagen: Item nicht im Inventar?")
-                     is_dragging = False; dragged_item_type = None; dragged_item_image = None
+                    world_x,world_y=camera.screen_to_world(mouse_pos_screen[0],mouse_pos_screen[1])
+                    snapped_tl_x=(world_x//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE; snapped_tl_y=(world_y//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE
+                    snapped_center_x=snapped_tl_x+PLACED_ITEM_SIZE/2; snapped_center_y=snapped_tl_y+PLACED_ITEM_SIZE/2
+                    can_place=True; temp_rect=pygame.Rect(0,0,PLACED_ITEM_SIZE,PLACED_ITEM_SIZE); temp_rect.center=(snapped_center_x,snapped_center_y)
+                    for item in placed_items:
+                        if temp_rect.colliderect(item.rect): can_place=False; logger.info(f"Platzieren blockiert."); break
+                    if can_place:
+                        if inventory.remove_item(dragged_item_type, 1):
+                            images = placed_item_images.get(dragged_item_type, {}) # Hole Bilder-Dict
+                            new_item = PlacedItem(snapped_center_x, snapped_center_y, dragged_item_type, images, fallback_placed_image, state='ohneErde') # Übergebe Bilder
+                            if new_item.rect: all_sprites.add(new_item); placed_items.add(new_item); logger.info(f"'{dragged_item_type}' platziert.")
+                            else: logger.error("Fehler Erstellen PlacedItem!"); inventory.add_item(dragged_item_type, 1) # Gib Item zurück
+                        else: logger.warning(f"Platzieren fehlgeschlagen: Item nicht im Inventar?")
+                    is_dragging = False; dragged_item_type = None; dragged_item_image = None
 
     # --- Update ---
     player.update(keys, camera.get_current_screen_rect())
@@ -320,32 +359,27 @@ while running:
     # --- Aufheben-Logik (Langes Halten) ---
     if interaction_active and potential_interaction_item:
         hold_duration = time.time() - interaction_start_time # Aktuelle Haltedauer
-        # Prüfe, ob Ziel noch gültig ist
-        player_cx=player.rect.centerx; player_cy=player.rect.centery; current_target_valid=False
+        player_cx=player.rect.centerx; player_cy=player.rect.centery; current_target_valid=False # Prüfe Ziel Gültigkeit
         if potential_interaction_item.alive():
              item_cx=potential_interaction_item.rect.centerx; item_cy=potential_interaction_item.rect.centery
              distance=math.sqrt((player_cx - item_cx)**2 + (player_cy - item_cy)**2)
              if distance < INTERACTION_RADIUS + potential_interaction_item.rect.width / 2: # Prüfe ob noch im Radius
                  is_still_closest = True # Prüfen ob immer noch das NÄCHSTE im Radius
                  for other_item in placed_items:
-                      if other_item==potential_interaction_item: continue
-                      other_cx=other_item.rect.centerx; other_cy=other_item.rect.centery; other_distance=math.sqrt((player_cx-other_cx)**2 + (player_cy-other_cy)**2)
-                      if other_distance < distance and other_distance < INTERACTION_RADIUS+other_item.rect.width/2: is_still_closest = False; break
+                     if other_item==potential_interaction_item: continue
+                     other_cx=other_item.rect.centerx; other_cy=other_item.rect.centery; other_distance=math.sqrt((player_cx-other_cx)**2 + (player_cy-other_cy)**2)
+                     if other_distance < distance and other_distance < INTERACTION_RADIUS+other_item.rect.width/2: is_still_closest = False; break
                  if is_still_closest: current_target_valid = True
-
-        if current_target_valid:
-            # Prüfe, ob Schwelle für langes Drücken (Aufheben) erreicht
-            if hold_duration >= LONG_PRESS_THRESHOLD:
-                logger.info(f"LANGES DRÜCKEN ({hold_duration:.2f}s) -> Pickup '{potential_interaction_item.item_type}'")
+        if current_target_valid: # Wenn Ziel gültig ist...
+            if hold_duration >= LONG_PRESS_THRESHOLD: # Prüfe, ob Schwelle erreicht
+                logger.info(f"LANGES DRÜCKEN -> Pickup '{potential_interaction_item.item_type}'")
                 item_type_to_add = potential_interaction_item.item_type
                 if inventory.add_item(item_type_to_add, 1): # Füge zum Inventar hinzu
                     logger.info(f"'{item_type_to_add}' zum Inventar hinzugefügt.")
                     potential_interaction_item.kill(); logger.info(f"Platziertes Item entfernt.")
                 else: logger.warning(f"Aufheben fehlgeschlagen: Inventar voll?")
                 potential_interaction_item = None; interaction_start_time = 0.0; interaction_active = False # Reset nach Aktion
-            # else: Noch nicht lange genug gehalten, Timer läuft weiter... (nichts tun)
-        else:
-             # Ziel ungültig geworden während des Haltens
+        else: # Ziel ungültig geworden
              if potential_interaction_item: logger.info(f"Interaktions-Ziel verloren."); potential_interaction_item = None; interaction_start_time = 0.0; interaction_active = False # Reset
 
     # --- Draw ---
@@ -358,17 +392,14 @@ while running:
             player_screen_rect=camera.apply(player); player_screen_center=player_screen_rect.center
             pygame.draw.circle(screen, WHITE, player_screen_center, INTERACTION_RADIUS, 1)
             if potential_interaction_item and interaction_start_time > 0:
-                 hold_duration = time.time() - interaction_start_time
-                 progress = min(1.0, hold_duration / LONG_PRESS_THRESHOLD)
-                 if progress > 0:
-                     bar_width=50; bar_height=5; bar_x=player_screen_center[0]-bar_width//2; bar_y=player_screen_rect.top-bar_height-3
-                     pygame.draw.rect(screen,(50,50,50),(bar_x,bar_y,bar_width,bar_height)); pygame.draw.rect(screen,(200,0,0),(bar_x,bar_y,int(bar_width*progress),bar_height))
+                 hold_duration = time.time() - interaction_start_time; progress = min(1.0, hold_duration / LONG_PRESS_THRESHOLD)
+                 if progress > 0: bar_width=50; bar_height=5; bar_x=player_screen_center[0]-bar_width//2; bar_y=player_screen_rect.top-bar_height-3; pygame.draw.rect(screen,(50,50,50),(bar_x,bar_y,bar_width,bar_height)); pygame.draw.rect(screen,(200,0,0),(bar_x,bar_y,int(bar_width*progress),bar_height))
         except Exception as e: logger.error(f"Fehler Zeichnen Interaktionsradius: {e}")
     try: # UI Text
         if pygame.font.get_init(): font=pygame.font.Font(None, 28); pos_text_str=f"P(TL):({player.rect.x},{player.rect.y}) C:({camera.camera_rect.x},{camera.camera_rect.y})"; pos_text_surface=font.render(pos_text_str,True,WHITE); screen.blit(pos_text_surface, (10, 10))
     except Exception as e: logger.error(f"Fehler UI-Text: {e}")
-    try: # Inventar
-        inventory.display(screen, inventory_pos)
+    try: # Inventar (übergibt jetzt Icons)
+        inventory.display(screen, inventory_pos, item_icons) # Icons übergeben
     except Exception as e: logger.error(f"Fehler Inventar-Anzeige: {e}")
     if is_dragging and dragged_item_image: # Gezogenes Item (Vorschau)
         world_x,world_y=camera.screen_to_world(mouse_pos_screen[0],mouse_pos_screen[1]); snapped_tl_x=(world_x//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE; snapped_tl_y=(world_y//PLACED_ITEM_SIZE)*PLACED_ITEM_SIZE
@@ -377,23 +408,25 @@ while running:
     # Interaktions-Button zeichnen (NUR auf Android)
     if platform_utils.IS_ANDROID:
         if button_image_normal: screen.blit(button_image_normal, BUTTON_RECT.topleft)
-        else: pygame.draw.rect(screen, BUTTON_COLOR_NORMAL, BUTTON_RECT); pygame.draw.rect(screen, BUTTON_BORDER_COLOR, BUTTON_RECT, 2)
-        try: # Text
-            if pygame.font.get_init(): btn_font=pygame.font.Font(None, 18); btn_text=btn_font.render("Interact", True, WHITE); btn_text_rect=btn_text.get_rect(center=BUTTON_RECT.center); screen.blit(btn_text, btn_text_rect)
-        except Exception as e: logger.error(f"Fehler Button-Text: {e}")
+        else: pygame.draw.rect(screen, BUTTON_COLOR_NORMAL, BUTTON_RECT); pygame.draw.rect(screen, BUTTON_BORDER_COLOR, BUTTON_RECT, 2) # Fallback
+        # Optionaler Text auf Fallback-Button
+        if not button_image_normal:
+            try:
+                if pygame.font.get_init(): btn_font=pygame.font.Font(None, 18); btn_text=btn_font.render("Interact", True, WHITE); btn_text_rect=btn_text.get_rect(center=BUTTON_RECT.center); screen.blit(btn_text, btn_text_rect)
+            except Exception as e: logger.error(f"Fehler Button-Text: {e}")
 
     pygame.display.flip()
 
 # --- Spiel beenden ---
 logger.info("Spiel-Loop beendet.")
 # Speichern...
-logger.info(f"Speichere Inventar..."); 
+logger.info(f"Speichere Inventar...");
 try: inventory.save_inventory()
 except Exception as e: logger.error(f"Fehler Inv speichern: {e}", exc_info=True)
-logger.info(f"Speichere Spielerposition..."); 
+logger.info(f"Speichere Spielerposition...");
 try: player_pos_data = {'x': player.rect.x, 'y': player.rect.y}; save_data(player_pos_data, PLAYER_POS_SAVE_FILE)
 except Exception as e: logger.error(f"Fehler Pos speichern: {e}", exc_info=True)
-logger.info(f"Speichere platzierte Items..."); 
+logger.info(f"Speichere platzierte Items...");
 try:
     placed_items_to_save = [{'type':item.item_type, 'x':item.rect.centerx, 'y':item.rect.centery, 'state':item.state, 'timer_end':item.timer_end_timestamp} for item in placed_items]
     save_data(placed_items_to_save, PLACED_ITEMS_SAVE_FILE); logger.info(f"{len(placed_items_to_save)} platzierte Items gespeichert.")
