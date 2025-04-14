@@ -2,36 +2,22 @@
     {
         "type": "Blumentopf",
         "x": 848,
-        "y": 656,
+        "y": 80,
         "state": "growing",
-        "timer_end": 1744619551.5937552
-    },
-    {
-        "type": "Blumentopf",
-        "x": 944,
-        "y": 656,
-        "state": "ohneErde",
-        "timer_end": null
+        "timer_end": 1744620616.871175
     },
     {
         "type": "Blumentopf",
         "x": 880,
-        "y": 656,
-        "state": "growing",
-        "timer_end": 1744619549.496099
+        "y": 80,
+        "state": "giessen",
+        "timer_end": null
     },
     {
         "type": "Blumentopf",
         "x": 912,
-        "y": 656,
-        "state": "growing",
-        "timer_end": 1744619556.0025043
-    },
-    {
-        "type": "Blumentopf",
-        "x": 976,
-        "y": 656,
-        "state": "ohneErde",
+        "y": 80,
+        "state": "ohneSeed",
         "timer_end": null
     }
 ]

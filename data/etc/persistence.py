@@ -38,6 +38,7 @@ def save_data(data, filepath):
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+        # logger.info(f"Daten erfolgreich in '{filepath}' gespeichert.") # War vorher auskommentiert
         return True
     except TypeError as e:
         logger.error(f"Fehler beim Konvertieren der Daten nach JSON für '{filepath}': {e}. Daten NICHT gespeichert.")
@@ -64,6 +65,7 @@ def load_data(filepath, default_data=None):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        # logger.info(f"Daten erfolgreich aus '{filepath}' geladen.") # War vorher auskommentiert
         return data
     except FileNotFoundError:
         logger.info(f"Datei '{filepath}' nicht gefunden. Gebe Standardwert zurück.")

@@ -90,9 +90,7 @@ class Inventory:
         """Fügt Items hinzu. Prüft auf Gültigkeit und Platz."""
         if not isinstance(item_name, str) or not item_name: logger.warning(f"Inv {id(self)} Add: Ungültiger Name: '{item_name}'"); return False
         if not isinstance(quantity, int) or quantity < 1: logger.warning(f"Inv {id(self)} Add: Ungültige Anzahl {quantity} für '{item_name}'"); return False
-        # Prüfe, ob Inventar voll ist, BEVOR ein komplett neuer Eintrag hinzugefügt wird
-        if item_name not in self._items and len(self._items) >= self.max_slots:
-             logger.warning(f"Inv {id(self)} Add: Voll ({len(self._items)}/{self.max_slots}). Kann neues Item '{item_name}' nicht hinzufügen."); return False
+        if item_name not in self._items and len(self._items) >= self.max_slots: logger.warning(f"Inv {id(self)} Add: Voll ({len(self._items)}/{self.max_slots}). Kann '{item_name}' nicht hinzufügen."); return False
         current_quantity = self._items.get(item_name, 0); self._items[item_name] = current_quantity + quantity
         logger.info(f"Inv {id(self)}: {quantity}x '{item_name}' hinzugefügt. Gesamt: {self._items[item_name]}"); return True
 
