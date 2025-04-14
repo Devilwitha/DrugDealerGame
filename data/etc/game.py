@@ -435,15 +435,23 @@ while running:
 logger.info("Spiel-Loop beendet.")
 # Speichern...
 logger.info(f"Speichere Inventar..."); 
-try: inventory.save_inventory()
-except Exception as e: logger.error(f"Fehler Inv speichern: {e}", exc_info=True)
+try: 
+    inventory.save_inventory()
+except Exception as e: 
+    logger.error(f"Fehler Inv speichern: {e}", exc_info=True)
 logger.info(f"Speichere Spielerposition..."); 
-try: player_pos_data = {'x': player.rect.x, 'y': player.rect.y}; save_data(player_pos_data, PLAYER_POS_SAVE_FILE)
-except Exception as e: logger.error(f"Fehler Pos speichern: {e}", exc_info=True)
+try: 
+    player_pos_data = {'x': player.rect.x, 'y': player.rect.y}; save_data(player_pos_data, PLAYER_POS_SAVE_FILE)
+except Exception as e: 
+    logger.error(f"Fehler Pos speichern: {e}", exc_info=True)
 logger.info(f"Speichere platzierte Items..."); 
-try: placed_items_to_save = [{'type': item.item_type, 'x': item.rect.centerx, 'y': item.rect.centery, 'state': item.state, 'timer_end': item.timer_end_timestamp} for item in placed_items]; save_data(placed_items_to_save, PLACED_ITEMS_SAVE_FILE); logger.info(f"{len(placed_items_to_save)} Items gespeichert.")
-except Exception as e: logger.error(f"Fehler Items speichern: {e}", exc_info=True)
+try: 
+    placed_items_to_save = [{'type': item.item_type, 'x': item.rect.centerx, 'y': item.rect.centery, 'state': item.state, 'timer_end': item.timer_end_timestamp} for item in placed_items]; save_data(placed_items_to_save, PLACED_ITEMS_SAVE_FILE); logger.info(f"{len(placed_items_to_save)} Items gespeichert.")
+except Exception as e: 
+    logger.error(f"Fehler Items speichern: {e}", exc_info=True)
 # Pygame beenden
-if pygame.get_init(): pygame.quit(); logger.info("Pygame beendet.")
+if pygame.get_init(): 
+    pygame.quit(); 
+    logger.info("Pygame beendet.")
 else: logger.info("Pygame war bereits beendet.")
 sys.exit()
