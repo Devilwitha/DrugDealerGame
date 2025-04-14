@@ -1,0 +1,110 @@
+2025-04-14 12:43:48 - INFO - root - File logging für game.py initialisiert. Log-Datei: C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\logs\game_2025-04-14_12-43-48.log
+2025-04-14 12:43:48 - INFO - __main__ - Spiel wird initialisiert...
+2025-04-14 12:43:48 - DEBUG - __main__ - Game Script Verzeichnis: C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc
+2025-04-14 12:43:48 - DEBUG - __main__ - Bild-Ordner: C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder
+2025-04-14 12:43:48 - DEBUG - __main__ - Speicher-Ordner: C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\savedata
+2025-04-14 12:43:48 - DEBUG - __main__ - Settings-Datei Pfad: C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\settings\settings.json
+2025-04-14 12:43:48 - ERROR - platform_utils - Unerwarteter Fehler bei der Android-Erkennung: Unable to find JAVA_HOME
+2025-04-14 12:43:48 - INFO - __main__ - Eigene Module importiert.
+2025-04-14 12:43:48 - INFO - __main__ - Einstellungen geladen: {'music_volume': 0.4765625, 'sfx_volume': 0.4791666666666667, 'master_volume': 0.4574652777777778}
+2025-04-14 12:43:48 - INFO - __main__ - Pygame Mixer initialisiert.
+2025-04-14 12:43:48 - INFO - __main__ - Spiel Bildschirmgröße erkannt: 1920x1200
+2025-04-14 12:43:48 - INFO - __main__ - Screen & Clock erstellt.
+2025-04-14 12:43:48 - INFO - __main__ - Weltgröße: 5760x2400
+2025-04-14 12:43:48 - INFO - __main__ - Fonts erstellt: UI=56, Btn=36
+2025-04-14 12:43:48 - INFO - __main__ - Button Default Size: 153x156
+2025-04-14 12:43:48 - INFO - __main__ - Lade Assets...
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\background.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\background.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\background.png'.
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\interact_button.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\interact_button.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\interact_button.png'.
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_icon.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_icon.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_icon.png'.
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\sack_erde_icon.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\sack_erde_icon.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\sack_erde_icon.png'.
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\weed_seeds_icon.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\weed_seeds_icon.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\weed_seeds_icon.png'.
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneErde.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneErde.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneErde.png'.
+2025-04-14 12:43:48 - WARNING - __main__ - Fehlendes Zustandsbild: Blumentopf -> ohneErde
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneSeed.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneSeed.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ohneSeed.png'.
+2025-04-14 12:43:48 - WARNING - __main__ - Fehlendes Zustandsbild: Blumentopf -> ohneSeed
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_giessen.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_giessen.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_giessen.png'.
+2025-04-14 12:43:48 - WARNING - __main__ - Fehlendes Zustandsbild: Blumentopf -> giessen
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_growing.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_growing.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_growing.png'.
+2025-04-14 12:43:48 - WARNING - __main__ - Fehlendes Zustandsbild: Blumentopf -> growing
+2025-04-14 12:43:48 - ERROR - __main__ - Fehler Laden Bild 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ready.png': No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ready.png'.
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\etc\game.py", line 111, in load_image_asset
+    try: image = pygame.image.load(path); image = image.convert_alpha() if alpha else image.convert()
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: No such file or directory: 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\bilder\blumentopf_ready.png'.
+2025-04-14 12:43:48 - WARNING - __main__ - Fehlendes Zustandsbild: Blumentopf -> readyToEarn
+2025-04-14 12:43:48 - INFO - __main__ - Spieler Spawn(TL):(2196,168)
+2025-04-14 12:43:48 - DEBUG - player - Initialisiere Spieler mit top-left bei (2196, 168) und Radius 10
+2025-04-14 12:43:48 - INFO - player - Spieler erstellt mit ID 1430301688944 bei Rect=<rect(2196, 168, 20, 20)>
+2025-04-14 12:43:48 - INFO - camera - Kamera initialisiert: Welt(5760x2400), Screen(1920x1200)
+2025-04-14 12:43:48 - INFO - __main__ - Kamera ausgerichtet: (1246, 0)
+2025-04-14 12:43:48 - DEBUG - inventory - Inventar 1430303478640: Schriftarten geladen.
+2025-04-14 12:43:48 - INFO - inventory - Inventar 1430303478640 wird initialisiert (max. 10 Slots).
+2025-04-14 12:43:48 - DEBUG - inventory - Inventar 1430303478640: Rufe persistence.load_data für 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\savedata\inventar.json' auf.
+2025-04-14 12:43:48 - INFO - inventory - Inventar 1430303478640: 3 Items übernommen.
+2025-04-14 12:43:48 - DEBUG - inventory - Inventar 1430303478640 Inhalt: {'Blumentopf': 4, 'Sack Erde': 3, 'Weed Seeds': 4}
+2025-04-14 12:43:48 - INFO - __main__ - Inventar erstellt.
+2025-04-14 12:43:48 - DEBUG - __main__ - Lade platzierte Items...
+2025-04-14 12:43:48 - INFO - __main__ - 2 platzierte Items geladen.
+2025-04-14 12:43:48 - DEBUG - npc - Initialisiere NPC bei (320, 256) mit Radius 10
+2025-04-14 12:43:48 - INFO - npc - NPC erstellt mit ID 1430303640368 bei (320, 256)
+2025-04-14 12:43:48 - DEBUG - npc - Initialisiere NPC bei (5440, 480) mit Radius 10
+2025-04-14 12:43:48 - INFO - npc - NPC erstellt mit ID 1430303640992 bei (5440, 480)
+2025-04-14 12:43:48 - DEBUG - __main__ - Spieler und NPCs hinzugefügt.
+2025-04-14 12:43:48 - DEBUG - __main__ - Inventar Pos: (20, 1132)
+2025-04-14 12:43:48 - DEBUG - __main__ - Interaktions-Button Rect: <rect(15, 961, 153, 156)>
+2025-04-14 12:43:48 - INFO - __main__ - Spiel-Loop startet.
+2025-04-14 12:43:51 - INFO - __main__ - ESC gedrückt -> Beenden.
+2025-04-14 12:43:51 - INFO - __main__ - Spiel-Loop beendet.
+2025-04-14 12:43:51 - INFO - __main__ - Speichere Inventar...
+2025-04-14 12:43:51 - DEBUG - inventory - Inventar 1430303478640: Rufe persistence.save_data auf für Pfad 'C:\Users\Administrator\Documents\Github\DrugsDealerGame\DrugDealerGame\data\savedata\inventar.json'.
+2025-04-14 12:43:51 - INFO - __main__ - Speichere Spielerposition...
+2025-04-14 12:43:51 - INFO - __main__ - Speichere platzierte Items...
+2025-04-14 12:43:51 - INFO - __main__ - 2 Items gespeichert.
+2025-04-14 12:43:51 - INFO - __main__ - Pygame beendet.
