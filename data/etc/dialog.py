@@ -1,17 +1,20 @@
 # dialog.py
+# Formatierung optimiert für Lesbarkeit
+# Stand: 2025-04-15
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Struktur:
 # DIALOGS = {
-#    "dialog_knoten_id": {
-#        "npc_text": "Was der NPC sagt.",
-#        "responses": [
-#            {"text": "Antwort 1", "action": "code", "next_node": "ziel_id_1"},
-#            ...
-#        ]
-#    }, ...
+#     "dialog_knoten_id": {
+#         "npc_text": "Was der NPC sagt.",
+#         "responses": [
+#             {"text": "Antwort 1", "action": "code", "next_node": "ziel_id_1"},
+#             ...
+#         ]
+#     }, ...
 # }
 # Mögliche Aktions-Codes: "open_shop", "open_sell_menu", "end_dialog", None
 
@@ -49,25 +52,32 @@ DIALOGS = {
             {"text": "Verstanden.", "action": "end_dialog", "next_node": None},
         ]
     },
-     "client_danke": { # Optional: Nach erfolgreichem Verkauf
+     "client_danke": { # Optional: Nach erfolgreichem Verkauf (könnte in game.py gesetzt werden)
         "npc_text": "Gutes Geschäft. Meld dich wieder.",
         "responses": [
             {"text": "[Gehen]", "action": "end_dialog", "next_node": None}
         ]
     },
-     "client_zu_wenig": { # Optional: Wenn Spieler nicht genug hat
+     "client_zu_wenig": { # Optional: Wenn Spieler nicht genug hat (könnte in game.py gesetzt werden)
         "npc_text": "Das ist nicht genug. Komm wieder, wenn du mehr hast.",
         "responses": [
             {"text": "[Okay]", "action": "end_dialog", "next_node": None}
         ]
     },
+    "client_nichts_da": { # Wenn Spieler gar kein Weed hat
+        "npc_text": "Schade, ich hätte was gebraucht. Sag Bescheid, wenn du fündig wirst.",
+         "responses": [
+            {"text": "[Okay]", "action": "end_dialog", "next_node": None}
+        ]
+    },
+
 
     # --- Generischer Dialog ---
     "generic_hallo": {
-         "npc_text": "Hallo.",
-         "responses": [
-             {"text": "[Gehen]", "action": "end_dialog", "next_node": None}
-         ]
+        "npc_text": "Hallo.",
+        "responses": [
+            {"text": "[Gehen]", "action": "end_dialog", "next_node": None}
+        ]
     }
 }
 

@@ -1,4 +1,7 @@
 # npc.py (Angepasst für Typen und Dialog)
+# Formatierung optimiert für Lesbarkeit
+# Stand: 2025-04-15
+
 import pygame
 import logging
 
@@ -7,9 +10,9 @@ logger = logging.getLogger(__name__)
 class NPC(pygame.sprite.Sprite):
     """
     Eine Klasse für Nicht-Spieler-Charaktere (NPCs).
-    Kann verschiedene Typen haben (z.B. 'generic', 'merchant').
+    Kann verschiedene Typen haben (z.B. 'generic', 'merchant', 'client').
     """
-    def __init__(self, x, y, radius, color, npc_type="generic", dialog_id=None): # NEU: npc_type, dialog_id
+    def __init__(self, x, y, radius, color, npc_type="generic", dialog_id=None):
         """
         Initialisiert den NPC.
 
@@ -18,14 +21,14 @@ class NPC(pygame.sprite.Sprite):
             y (int): Welt-Y-Koordinate des Mittelpunkts.
             radius (int): Radius des NPC-Kreises.
             color (tuple): Farbe des NPCs (RGB).
-            npc_type (str): Typ des NPCs (z.B. 'merchant').
+            npc_type (str): Typ des NPCs (z.B. 'merchant', 'client').
             dialog_id (str, optional): Start-ID für den Dialogbaum dieses NPCs. Defaults to None.
         """
         super().__init__()
         logger.debug(f"Initialisiere NPC Typ '{npc_type}' bei ({x}, {y}) mit Radius {radius}")
         self.radius = radius
-        self.npc_type = npc_type # NEU
-        self.dialog_id = dialog_id # NEU
+        self.npc_type = npc_type # Typ des NPCs
+        self.dialog_id = dialog_id # Zugehörige Dialog-ID
 
         # --- Aussehen (bleibt vorerst ein Kreis) ---
         # In Zukunft könnte dies basierend auf npc_type ein Bild laden
