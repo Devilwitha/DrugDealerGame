@@ -48,6 +48,7 @@ try:
     # Erstelle Formatter und weise ihn dem Handler zu
     formatter = logging.Formatter(log_format, datefmt=date_fmt)
     file_handler.setFormatter(formatter)
+    
 
     # Füge den Handler zum Root-Logger hinzu
     logging.getLogger().addHandler(file_handler)
