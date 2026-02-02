@@ -83,8 +83,26 @@ try:
     screen_width = game_data.get('screen_width')
     screen_height = game_data.get('screen_height')
 
-    if not all([screen, clock, player, camera, inventory, all_sprites, placed_items, npcs]):
-         raise ValueError("Einige kritische Spielobjekte fehlen nach der Initialisierung!")
+    # Debug: Check which objects are missing
+    critical_objects = {
+        'screen': screen,
+        'clock': clock, 
+        'player': player,
+        'camera': camera,
+        'inventory': inventory,
+        'all_sprites': all_sprites,
+        'placed_items': placed_items,
+        'npcs': npcs
+    }
+    
+    missing_objects = [name for name, obj in critical_objects.items() if obj is None]
+    
+    if missing_objects:
+        logger.critical(f"Fehlende kritische Objekte: {missing_objects}")
+        logger.critical(f"Status aller Objekte: {[(name, obj is not None, type(obj).__name__ if obj is not None else 'None') for name, obj in critical_objects.items()]}")
+        raise ValueError("Einige kritische Spielobjekte fehlen nach der Initialisierung!")
+    
+    logger.info("Alle kritischen Objekte erfolgreich initialisiert.")
 
     background_image = assets.get('background')
     item_icons = assets.get('item_icons', {})
@@ -160,11 +178,11 @@ def handle_npc_interaction(npc_target, current_inventory):
         return
 
     start_node_id = active_npc.dialog_id
-    if active_npc.npc_type == "client" and not current_inventory.has_item(items.ITEM_WEED, 1):
+    if active_npc.npc_type == "client" and not (current_inventory.has_item(items.ITEM_WEED, 1) or current_inventory.has_item(items.ITEM_VERPACKTES_WEED, 1)):
         alternative_node = "client_nichts_da"
         if dialog.get_dialog_node(alternative_node):
             start_node_id = alternative_node
-            logger.info("Client angesprochen, aber kein Weed dabei. Starte mit Knoten: " + start_node_id)
+            logger.info("Client angesprochen, aber weder Weed noch VerpacktesWeed dabei. Starte mit Knoten: " + start_node_id)
         else:
              logger.warning(f"Alternativknoten '{alternative_node}' für Client nicht gefunden.")
 
@@ -216,8 +234,7 @@ while running:
                     ui_result = ui_manager.handle_shop_click(mouse_pos_screen, clickable_ui_elements, ui_exit_button_rect, inventory, player_money, play_game_sound)
                     click_handled_by_ui = ui_result is not None
                 elif current_game_state == config.GAME_STATE_SELL:
-                    sell_btn_rect_arg = clickable_ui_elements[0][0] if clickable_ui_elements else None
-                    ui_result = ui_manager.handle_sell_click(mouse_pos_screen, sell_btn_rect_arg, ui_exit_button_rect, inventory, play_game_sound)
+                    ui_result = ui_manager.handle_sell_click(mouse_pos_screen, clickable_ui_elements, ui_exit_button_rect, inventory, play_game_sound)
                     click_handled_by_ui = ui_result is not None
 
                 # --- Ergebnis des UI-Klicks verarbeiten ---
@@ -461,7 +478,9 @@ while running:
         # 3. Zeichnen in UI-Zuständen (ruft ui_manager auf)
         elif current_game_state == config.GAME_STATE_DIALOG: clickable_ui_elements = ui_manager.draw_dialog_ui(screen, screen_width, screen_height, current_dialog_node_id, fonts); ui_exit_button_rect = None
         elif current_game_state == config.GAME_STATE_SHOP: clickable_ui_elements, ui_exit_button_rect = ui_manager.draw_shop_ui(screen, screen_width, screen_height, player_money, locale_set, item_icons, fonts)
-        elif current_game_state == config.GAME_STATE_SELL: sell_button_rect, ui_exit_button_rect = ui_manager.draw_sell_ui(screen, screen_width, screen_height, player_money, locale_set, inventory, item_icons, fonts); clickable_ui_elements = []; sell_data = {'action': 'sell_item'}; clickable_ui_elements.append((sell_button_rect, sell_data)) if sell_button_rect else None
+        elif current_game_state == config.GAME_STATE_SELL: 
+            sell_buttons_list, ui_exit_button_rect = ui_manager.draw_sell_ui(screen, screen_width, screen_height, player_money, locale_set, inventory, item_icons, fonts)
+            clickable_ui_elements = sell_buttons_list.copy()  # Kopiere die Button-Liste
 
 
         # --- Bildschirm aktualisieren ---

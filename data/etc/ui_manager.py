@@ -328,7 +328,7 @@ def draw_shop_ui(surface, screen_width, screen_height, player_money, locale_set,
 
 def draw_sell_ui(surface, screen_width, screen_height, player_money, locale_set, inventory, item_icons, fonts):
     """
-    Zeichnet das Verkaufsfenster (aktuell nur für Weed).
+    Zeichnet das Verkaufsfenster für Weed und VerpacktesWeed.
 
     Args:
         surface (pygame.Surface): Die Oberfläche zum Zeichnen.
@@ -341,17 +341,17 @@ def draw_sell_ui(surface, screen_width, screen_height, player_money, locale_set,
         fonts (dict): Dictionary mit benötigten Fonts {'ui', 'shop', 'button', 'inventory'}.
 
     Returns:
-        tuple: (sell_button_rect, exit_button_rect)
-               sell_button_rect: pygame.Rect für den Verkaufen-Button oder None (wenn nichts zu verkaufen).
+        tuple: (sell_buttons_list, exit_button_rect)
+               sell_buttons_list: Liste von (button_rect, item_data) für verkaufbare Items
                exit_button_rect: pygame.Rect für den Verlassen-Button oder None.
     """
-    sell_button_rect = None # Initialisieren
-    sell_exit_button_rect = None # Initialisieren
+    sell_buttons_list = []
+    sell_exit_button_rect = None
 
     ui_font = fonts.get('ui')
-    shop_font = fonts.get('shop') # Nutzen Shop-Font für Item-Text
+    shop_font = fonts.get('shop')
     button_font = fonts.get('button')
-    inventory_font = fonts.get('inventory') # Für Geldanzeige
+    inventory_font = fonts.get('inventory')
 
     margin = 50
     sell_ui_rect = pygame.Rect(margin, margin, screen_width - 2 * margin, screen_height - 2 * margin)
@@ -362,7 +362,7 @@ def draw_sell_ui(surface, screen_width, screen_height, player_money, locale_set,
 
     # Titel
     if ui_font:
-        title_surf = ui_font.render("Weed Verkaufen", True, config.YELLOW)
+        title_surf = ui_font.render("Waren Verkaufen", True, config.YELLOW)
         title_rect = title_surf.get_rect(centerx=sell_ui_rect.centerx, top=sell_ui_rect.top + 15)
         surface.blit(title_surf, title_rect)
 
@@ -371,89 +371,101 @@ def draw_sell_ui(surface, screen_width, screen_height, player_money, locale_set,
         try:
             money_txt_sell = locale.currency(player_money, grouping=True) if locale_set else f"{player_money:.2f} $"
         except Exception:
-            money_txt_sell = f"{player_money:.2f}" # Fallback
+            money_txt_sell = f"{player_money:.2f}"
         money_surf = inventory_font.render(f"Dein Geld: {money_txt_sell}", True, config.GREEN)
         money_rect = money_surf.get_rect(right=sell_ui_rect.right - 20, top=sell_ui_rect.top + 20)
         surface.blit(money_surf, money_rect)
 
-    # Bereich für das zu verkaufende Item (Weed)
-    item_name_to_sell = items.ITEM_WEED # Nutze Konstante aus items.py
-    item_price = config.WEED_SELL_PRICE # Nutze Konstante aus config.py
-    item_icon = item_icons.get(item_name_to_sell)
-    item_qty = 0
-    if inventory:
-        item_qty = inventory.get_item_count(item_name_to_sell)
-    else:
-        logger.error("draw_sell_ui: Inventar ist None!")
+    # Verkaufbare Items definieren
+    sellable_items = [
+        {
+            'name': items.ITEM_WEED,
+            'price': config.WEED_SELL_PRICE,
+            'qty': inventory.get_item_count(items.ITEM_WEED) if inventory else 0
+        },
+        {
+            'name': items.ITEM_VERPACKTES_WEED,
+            'price': config.PACKED_WEED_SELL_PRICE,
+            'qty': inventory.get_item_count(items.ITEM_VERPACKTES_WEED) if inventory else 0
+        }
+    ]
 
-    item_area_x = sell_ui_rect.left + 30
-    item_area_y = sell_ui_rect.top + 70
-    item_area_w = sell_ui_rect.width - 60
-    item_area_h = 100
-    item_display_rect = pygame.Rect(item_area_x, item_area_y, item_area_w, item_area_h)
-    pygame.draw.rect(surface, config.GREY, item_display_rect)
-    pygame.draw.rect(surface, config.WHITE, item_display_rect, 1)
-
-    # Item-Icon und Text
-    text_start_x = item_display_rect.left + 15
-    if item_icon:
-        # Icon skalieren für Anzeige (Beispielgröße)
-        try:
-             icon_scaled = pygame.transform.smoothscale(item_icon, (item_area_h - 20, item_area_h - 20))
-             icon_rect = icon_scaled.get_rect(centery=item_display_rect.centery, left=item_display_rect.left + 15)
-             surface.blit(icon_scaled, icon_rect)
-             text_start_x = icon_rect.right + 20
-        except Exception as e:
-            logger.error(f"Fehler beim Skalieren des Sell-Icons für {item_name_to_sell}: {e}")
-    else:
-        logger.warning(f"Kein Icon für '{item_name_to_sell}' im Verkaufs-UI gefunden.")
-
-    if shop_font:
-        name_surf = shop_font.render(f"{item_name_to_sell} (Du hast: {item_qty})", True, config.WHITE)
-        name_rect = name_surf.get_rect(left=text_start_x, top=item_display_rect.top + 15)
-        surface.blit(name_surf, name_rect)
-
-        try:
-            price_txt_sell = locale.currency(item_price, grouping=True) if locale_set else f"{item_price:.2f} $"
-        except Exception:
-            price_txt_sell = f"{item_price:.2f}"
-        price_surf = shop_font.render(f"Preis pro Stück: {price_txt_sell}", True, config.YELLOW)
-        price_rect = price_surf.get_rect(left=text_start_x, top=name_rect.bottom + 10)
-        surface.blit(price_surf, price_rect)
-
-    # Verkaufen-Button
+    # Items anzeigen und Buttons erstellen
     mouse_pos = pygame.mouse.get_pos()
+    start_y = sell_ui_rect.top + 80
+    item_height = 80
     button_w = 150
     button_h = 40
-    button_y = item_display_rect.bottom + 20
-    button_x = sell_ui_rect.centerx - button_w // 2
-    temp_sell_button_rect = pygame.Rect(button_x, button_y, button_w, button_h)
 
-    if item_qty > 0: # Button nur aktiv, wenn man etwas hat
-        sell_button_rect = temp_sell_button_rect # Rect für Klick-Erkennung speichern
-        hover = sell_button_rect.collidepoint(mouse_pos)
-        btn_col = config.LIGHT_GREY if hover else config.GREY
-        pygame.draw.rect(surface, btn_col, sell_button_rect)
-        pygame.draw.rect(surface, config.WHITE, sell_button_rect, 1)
-        if button_font:
-            sell_text_surf = button_font.render("1 Verkaufen", True, config.BLACK)
-            sell_text_rect = sell_text_surf.get_rect(center=sell_button_rect.center)
-            surface.blit(sell_text_surf, sell_text_rect)
-    else: # Button inaktiv
-        pygame.draw.rect(surface, (50, 50, 50), temp_sell_button_rect) # Dunkler
-        pygame.draw.rect(surface, config.GREY, temp_sell_button_rect, 1)
-        if button_font:
-            sell_text_surf = button_font.render("Nichts da", True, config.LIGHT_GREY)
-            sell_text_rect = sell_text_surf.get_rect(center=temp_sell_button_rect.center)
-            surface.blit(sell_text_surf, sell_text_rect)
-        # sell_button_rect bleibt None
+    for i, item_data in enumerate(sellable_items):
+        item_name = item_data['name']
+        item_price = item_data['price']
+        item_qty = item_data['qty']
+        item_icon = item_icons.get(item_name)
+
+        # Item-Bereich
+        item_y = start_y + (i * (item_height + 20))
+        item_rect = pygame.Rect(sell_ui_rect.left + 30, item_y, sell_ui_rect.width - 60, item_height)
+        pygame.draw.rect(surface, config.GREY, item_rect)
+        pygame.draw.rect(surface, config.WHITE, item_rect, 1)
+
+        # Icon und Text
+        text_start_x = item_rect.left + 15
+        if item_icon:
+            try:
+                icon_scaled = pygame.transform.smoothscale(item_icon, (item_height - 20, item_height - 20))
+                icon_rect = icon_scaled.get_rect(centery=item_rect.centery, left=item_rect.left + 15)
+                surface.blit(icon_scaled, icon_rect)
+                text_start_x = icon_rect.right + 20
+            except Exception as e:
+                logger.error(f"Fehler beim Skalieren des Verkaufs-Icons für {item_name}: {e}")
+
+        if shop_font:
+            name_surf = shop_font.render(f"{item_name} (Du hast: {item_qty})", True, config.WHITE)
+            name_rect = name_surf.get_rect(left=text_start_x, top=item_rect.top + 10)
+            surface.blit(name_surf, name_rect)
+
+            try:
+                price_txt_sell = locale.currency(item_price, grouping=True) if locale_set else f"{item_price:.2f} $"
+            except Exception:
+                price_txt_sell = f"{item_price:.2f}"
+            price_surf = shop_font.render(f"Preis pro Stück: {price_txt_sell}", True, config.YELLOW)
+            price_rect = price_surf.get_rect(left=text_start_x, top=name_rect.bottom + 5)
+            surface.blit(price_surf, price_rect)
+
+        # Verkaufen-Button für dieses Item
+        button_x = item_rect.right - button_w - 15
+        button_y = item_rect.centery - button_h // 2
+        button_rect = pygame.Rect(button_x, button_y, button_w, button_h)
+
+        if item_qty > 0:
+            # Button aktiv
+            hover = button_rect.collidepoint(mouse_pos)
+            btn_col = config.LIGHT_GREY if hover else config.GREY
+            pygame.draw.rect(surface, btn_col, button_rect)
+            pygame.draw.rect(surface, config.WHITE, button_rect, 1)
+            if button_font:
+                sell_text = "1 Verkaufen"
+                sell_text_surf = button_font.render(sell_text, True, config.BLACK)
+                sell_text_rect = sell_text_surf.get_rect(center=button_rect.center)
+                surface.blit(sell_text_surf, sell_text_rect)
+            # Button zur Liste hinzufügen
+            sell_buttons_list.append((button_rect, item_data))
+        else:
+            # Button inaktiv
+            pygame.draw.rect(surface, (50, 50, 50), button_rect)
+            pygame.draw.rect(surface, config.GREY, button_rect, 1)
+            if button_font:
+                sell_text_surf = button_font.render("Nichts da", True, config.LIGHT_GREY)
+                sell_text_rect = sell_text_surf.get_rect(center=button_rect.center)
+                surface.blit(sell_text_surf, sell_text_rect)
 
     # Verlassen-Button
     exit_w = 100
     exit_h = 40
     exit_x = sell_ui_rect.centerx - exit_w // 2
     exit_y = sell_ui_rect.bottom - exit_h - 15
-    sell_exit_button_rect = pygame.Rect(exit_x, exit_y, exit_w, exit_h) # Immer klickbar
+    sell_exit_button_rect = pygame.Rect(exit_x, exit_y, exit_w, exit_h)
     hover = sell_exit_button_rect.collidepoint(mouse_pos)
     exit_col = config.RED if hover else config.DARK_BLUE
     pygame.draw.rect(surface, exit_col, sell_exit_button_rect)
@@ -463,7 +475,7 @@ def draw_sell_ui(surface, screen_width, screen_height, player_money, locale_set,
         exit_rect = exit_surf.get_rect(center=sell_exit_button_rect.center)
         surface.blit(exit_surf, exit_rect)
 
-    return sell_button_rect, sell_exit_button_rect
+    return sell_buttons_list, sell_exit_button_rect
 
 
 # ========= UI EVENT HANDLER =========
@@ -493,12 +505,12 @@ def handle_dialog_click(mouse_pos, clickable_dialog_elements, inventory):
             if action == "open_shop":
                 return {'next_state': config.GAME_STATE_SHOP}
             elif action == "open_sell_menu":
-                # Prüfe, ob der Spieler überhaupt etwas zu verkaufen hat (Weed)
-                if inventory and inventory.has_item(items.ITEM_WEED, 1):
+                # Prüfe, ob der Spieler überhaupt etwas zu verkaufen hat (Weed oder VerpacktesWeed)
+                if inventory and (inventory.has_item(items.ITEM_WEED, 1) or inventory.has_item(items.ITEM_VERPACKTES_WEED, 1)):
                     return {'next_state': config.GAME_STATE_SELL}
                 else:
                     # Spieler hat nichts, zeige anderen Dialogknoten statt Verkaufsmenü
-                    logger.info("Verkaufen-Aktion, aber kein Weed im Inventar. Suche 'nichts_da'-Knoten.")
+                    logger.info("Verkaufen-Aktion, aber weder Weed noch VerpacktesWeed im Inventar. Suche 'nichts_da'-Knoten.")
                     # Versuche, zu einem spezifischen "nichts da"-Knoten zu springen
                     # (Hier Annahme: Händler hat "händler_nichts_da", Kunde hat "client_nichts_da")
                     # Dies könnte flexibler gestaltet werden, z.B. durch ein Feld in der response_data
@@ -584,13 +596,13 @@ def handle_shop_click(mouse_pos, clickable_shop_items, exit_button_rect, invento
     return None # Nichts Relevantes geklickt
 
 
-def handle_sell_click(mouse_pos, sell_button_rect, exit_button_rect, inventory, play_sound_func):
+def handle_sell_click(mouse_pos, sell_buttons_list, exit_button_rect, inventory, play_sound_func):
     """
     Verarbeitet einen Mausklick im Verkaufs-Zustand.
 
     Args:
         mouse_pos (tuple): Die (x, y) Position des Mausklicks.
-        sell_button_rect (pygame.Rect | None): Rect des Verkaufen-Buttons (ist None, wenn nichts da ist).
+        sell_buttons_list (list): Liste von (button_rect, item_data) für verkaufbare Items.
         exit_button_rect (pygame.Rect | None): Rect des Verlassen-Buttons.
         inventory (Inventory): Das Spieler-Inventar.
         play_sound_func (callable): Funktion zum Abspielen von Sounds (z.B. "error", "sell_success").
@@ -598,32 +610,30 @@ def handle_sell_click(mouse_pos, sell_button_rect, exit_button_rect, inventory, 
     Returns:
         dict | None: Ein Dictionary mit dem Ergebnis der Aktion, z.B.
                      {'next_state': config.GAME_STATE_PLAY},
-                     {'money_change': preis, 'item_removed': ('Weed', 1)},
+                     {'money_change': preis, 'item_removed': ('ItemName', 1)},
                      oder None, wenn kein klickbares Element getroffen wurde.
     """
-    item_name_to_sell = items.ITEM_WEED
-    item_price = config.WEED_SELL_PRICE
-
-    # Prüfe Klick auf Verkaufen-Button
-    if sell_button_rect and sell_button_rect.collidepoint(mouse_pos):
-        logger.debug(f"Verkaufen: Klick auf Verkaufen-Button.")
-        if inventory and inventory.has_item(item_name_to_sell, 1):
-            # Versuche Item zu entfernen
-            if inventory.remove_item(item_name_to_sell, 1):
-                logger.info(f"1 {item_name_to_sell} verkauft.")
-                play_sound_func("sell_success") # Optional: Eigener Sound für Verkauf
-                # Gib Änderung zurück
-                return {'money_change': item_price, 'item_removed': (item_name_to_sell, 1)}
+    # Prüfe Klick auf Verkaufen-Buttons
+    for button_rect, item_data in sell_buttons_list:
+        if button_rect.collidepoint(mouse_pos):
+            item_name = item_data['name']
+            item_price = item_data['price']
+            logger.debug(f"Verkaufen: Klick auf Verkaufen-Button für {item_name}.")
+            
+            if inventory and inventory.has_item(item_name, 1):
+                # Versuche Item zu entfernen
+                if inventory.remove_item(item_name, 1):
+                    logger.info(f"1 {item_name} verkauft für {item_price:.2f}.")
+                    play_sound_func("sell_success")
+                    return {'money_change': item_price, 'item_removed': (item_name, 1)}
+                else:
+                    logger.error(f"Konnte {item_name} nicht entfernen, obwohl has_item True war?")
+                    play_sound_func("error")
+                    return None
             else:
-                # Sollte nicht passieren, wenn has_item True war
-                logger.error("Konnte Weed nicht entfernen, obwohl has_item True war?")
+                logger.warning(f"Klick auf Verkaufen für {item_name}, obwohl nicht (mehr) da ist.")
                 play_sound_func("error")
-                return None # Keine Änderung
-        else:
-            # Sollte nicht passieren, da Button dann None sein sollte
-            logger.warning("Klick auf Verkaufen, obwohl kein Weed (mehr) da ist.")
-            play_sound_func("error")
-            return None # Keine Änderung
+                return None
 
     # Prüfe Klick auf Verlassen-Button
     if exit_button_rect and exit_button_rect.collidepoint(mouse_pos):

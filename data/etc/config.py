@@ -35,6 +35,7 @@ LONG_PRESS_THRESHOLD = 1.0         # Sekunden für langes Drücken (Aufheben)
 
 # ========= GAMEPLAY =========
 WEED_SELL_PRICE = 15.0 # Verkaufspreis pro Einheit Weed
+PACKED_WEED_SELL_PRICE = 25.0 # Verkaufspreis pro Einheit VerpacktesWeed (höher als normales Weed)
 
 
 # ========= UI LAYOUT (Basiswerte & Standard-Konfiguration) =========
